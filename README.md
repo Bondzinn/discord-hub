@@ -14,7 +14,7 @@ Painel flutuante para o Discord (web e app desktop) com três módulos:
 2. Cole o comando abaixo e pressione Enter:
 
 ```js
-fetch("https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/Panel").then(r => r.text()).then(t => (0, eval)(t))
+fetch("https://raw.githubusercontent.com/Bondzinn/discord-hub/refs/heads/main/Panel").then(r => r.text()).then(t => (0, eval)(t))
 ```
 
 O painel aparece no canto inferior direito. Rodar o comando de novo substitui a instância anterior.

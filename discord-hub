@@ -1,0 +1,1703 @@
+/**
+ * 288 • Hub
+ * Auto Quest (automático) + Game Presence (toggle) + Fake Stream (toggle)
+ * Atalhos: Alt+1/2/3 abas · Alt+Shift+1/2/3 liga/desliga · Alt+H minimiza
+ *
+ * Uso (console do Discord, F12):
+ *   fetch("https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/Panel").then(r => r.text()).then(t => (0, eval)(t))
+ */
+(async () => {
+  "use strict";
+
+  const CFG = Object.freeze({
+    TITLE: "288 • Hub",
+    BUILD: "gh-1.0.0",                     // versão publicada no GitHub
+    ALLOW: /*@allow*/[]/*@end*/,           // IDs de usuário autorizados (vazio = qualquer um)
+    KEY: "__h288",
+  });
+  const TITLE = CFG.TITLE;
+
+  // ---------- Proteção da marca "288 • Hub" ----------
+  // Se o nome for alterado no código, o script se recusa a rodar.
+  const fnv = (s) => { let h = 0x811c9dc5; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); };
+  const BRAND = Object.freeze({ full: "288 • Hub", a: "288", b: "Hub" });
+  const BRAND_SUM = Object.freeze({ full: "751c04d4", a: "3bfb9bfd", b: "4717fc8c" });
+  if (fnv(CFG.TITLE) !== BRAND_SUM.full || fnv(BRAND.full) !== BRAND_SUM.full || fnv(BRAND.a) !== BRAND_SUM.a || fnv(BRAND.b) !== BRAND_SUM.b) {
+    console.error("[288 • Hub] Marca alterada: execução bloqueada. Use o link oficial do GitHub.");
+    return;
+  }
+
+  if (!/(^|\.)discord\.com$/.test(location.hostname)) return;
+
+  // ---------- Ciclo de vida (uma instância por vez, sem globais públicas) ----------
+  const disposers = [];
+  const onDispose = (f) => disposers.push(f);
+  let disposed = false;
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    for (const f of disposers.reverse()) { try { f(); } catch {} }
+  };
+  try { window[CFG.KEY]?.(); } catch {}
+  Object.defineProperty(window, CFG.KEY, { value: dispose, configurable: true, writable: true, enumerable: false });
+  let refreshHub = () => {};
+
+  // ---------- Módulos internos ----------
+  const wpRequire = webpackChunkdiscord_app.push([[Symbol()], {}, r => r]);
+  webpackChunkdiscord_app.pop();
+  const mods = Object.values(wpRequire.c);
+
+  const findAll = (pred) => {
+    const out = [];
+    for (const m of mods) {
+      const e = m?.exports;
+      if (!e || e === window) continue;
+      try { if (pred(e)) out.push(e); } catch {}
+      if (typeof e !== "object" && typeof e !== "function") continue;
+      for (const k in e) { try { const v = e[k]; if (v && pred(v)) out.push(v); } catch {} }
+    }
+    return out;
+  };
+  const find = (pred) => findAll(pred)[0] ?? null;
+
+  // Procura funções pelo código-fonte (mesmo método do plugin InstantScreenshare)
+  const scanFns = (needles) => {
+    const res = {};
+    const left = new Set(Object.keys(needles));
+    const check = (v) => {
+      if (typeof v !== "function") return;
+      let s; try { s = Function.prototype.toString.call(v); } catch { return; }
+      for (const k of [...left]) if (s.includes(needles[k])) { res[k] = v; left.delete(k); }
+    };
+    for (const m of mods) {
+      if (!left.size) break;
+      const e = m?.exports;
+      if (!e || e === window) continue;
+      check(e);
+      if (typeof e !== "object" && typeof e !== "function") continue;
+      for (const k in e) { try { check(e[k]); } catch {} if (!left.size) break; }
+    }
+    return res;
+  };
+
+  const QuestsStore        = find(v => typeof v.getQuest === "function" && v.quests instanceof Map);
+  const RunningGameStore   = find(v => typeof v.getRunningGames === "function" && typeof v.getGameForPID === "function");
+  const StreamingStore     = find(v => typeof v.getStreamerActiveStreamMetadata === "function");
+  const FluxDispatcher     = find(v => typeof v.flushWaitQueue === "function" && typeof v.dispatch === "function" && typeof v.subscribe === "function")
+                          ?? find(v => typeof v.flushWaitQueue === "function" && typeof v.dispatch === "function");
+  const ChannelStore       = find(v => typeof v.getSortedPrivateChannels === "function");
+  const PresenceStore      = find(v => typeof v.getActivities === "function" && typeof v.getStatus === "function");
+  const UserStore          = find(v => typeof v.getCurrentUser === "function" && typeof v.getUser === "function");
+  const GuildStore         = find(v => typeof v.getGuild === "function" && typeof v.getGuilds === "function" && typeof v.getGuildCount === "function")
+                          ?? find(v => typeof v.getGuild === "function" && typeof v.getGuilds === "function");
+  const GuildChannelStore  = find(v => typeof v.getAllGuilds === "function" && typeof v.getChannels === "function")
+                          ?? find(v => typeof v.getAllGuilds === "function" && typeof v.getVocalChannelIds === "function")
+                          ?? find(v => typeof v.getAllGuilds === "function");
+  const VoiceStateStore    = find(v => typeof v.getVoiceStateForChannel === "function" && typeof v.getVoiceStates === "function");
+  const SelectedChannelStore = find(v => typeof v.getVoiceChannelId === "function" && typeof v.getChannelId === "function");
+  const VoiceActions       = find(v => typeof v.selectVoiceChannel === "function");
+  const StreamStore        = find(v => typeof v.getCurrentUserActiveStream === "function");
+  const MediaEngineStore   = find(v => typeof v.getMediaEngine === "function" && typeof v.getVideoDevices === "function");
+  const StreamSettingsStore = find(v => typeof v.getState === "function" && "soundshareEnabled" in (v.getState() ?? {}));
+  const fns = scanFns({ start: 'type:"STREAM_START"', stop: 'type:"STREAM_STOP"', sources: "desktop sources" });
+
+  const IS_APP = typeof DiscordNative !== "undefined";
+  const IS_WIN = (IS_APP && DiscordNative.process?.platform === "win32") || /Win/i.test(navigator.platform);
+  const myId = () => UserStore?.getCurrentUser?.()?.id;
+
+  // Licença opcional: só roda para as contas listadas em CFG.ALLOW
+  if (CFG.ALLOW.length && !CFG.ALLOW.includes(myId())) { disposed = true; return; }
+
+  // Limpa versões antigas (scripts separados) e hooks quebrados
+  for (const id of ["fs-ui", "fs-bubble", "fs-style", "fs-stage", "aqc-ui", "aqc-bubble", "rpc-ui", "rpc-bubble", "rpc-style"]) document.getElementById(id)?.remove();
+  const healStore = (S) => {
+    if (!S) return;
+    const proto = Object.getPrototypeOf(S);
+    for (const fn of ["getRunningGames", "getVisibleRunningGames", "getCandidateGames", "getVisibleGame", "getRunningGame", "getGameForPID"]) {
+      if (typeof S[fn] !== "function") continue;
+      try { S[fn](fn === "getGameForPID" ? 0 : undefined); }
+      catch { if (Object.prototype.hasOwnProperty.call(S, fn) && typeof proto?.[fn] === "function") delete S[fn]; }
+    }
+  };
+  healStore(RunningGameStore);
+  try { window.__AQC?.stop?.(); } catch {}
+  try { window.RPC?.close?.(); } catch {}
+  try { window.FS?.close?.(); } catch {}
+
+  // ---------- Cliente de API do Discord ----------
+  let api = null;
+  for (const c of findAll(v => typeof v.get === "function" && typeof v.post === "function" && typeof v.patch === "function" && typeof v.del === "function")) {
+    try { const r = await c.get({ url: "/users/@me" }); if (r?.body?.id) { api = c; break; } } catch {}
+  }
+  if (!api) {
+    const token = find(v => typeof v.getToken === "function")?.getToken?.();
+    if (token) {
+      const call = (method) => async ({ url, body }) => {
+        const r = await fetch("/api/v9" + url, {
+          method, headers: { "Authorization": token, "Content-Type": "application/json" },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        let json = null; try { json = await r.json(); } catch {}
+        return { status: r.status, body: json };
+      };
+      api = { get: call("GET"), post: call("POST"), patch: call("PATCH"), del: call("DELETE") };
+    }
+  }
+
+  // ---------- Utilidades ----------
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const waitFor = async (fn, ms = 8000, step = 250) => {
+    const t = Date.now();
+    while (Date.now() - t < ms) { if (fn()) return true; await sleep(step); }
+    return false;
+  };
+  const normText = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const normGame = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const hue = (str) => { let h = 0; for (const c of String(str)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+  const gradFor = (name) => { const h = hue(name); return `linear-gradient(135deg,hsl(${h} 55% 28%),hsl(${(h + 40) % 360} 55% 14%))`; };
+  const hms = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  };
+  const fmtMin = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  const store = {
+    get: (k) => { try { return localStorage.getItem("h288:" + k); } catch { return null; } },
+    set: (k, v) => { try { localStorage.setItem("h288:" + k, v); } catch {} },
+  };
+  const REDUCED = matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+
+  // ---------- DOM / ícones ----------
+  const FONT = '"gg sans","Segoe UI",Roboto,sans-serif';
+  const SHADOW = "text-shadow:0 1px 3px rgba(0,0,0,.9);";
+  const el = (tag, css = "", text = "") => {
+    const e = document.createElement(tag);
+    if (css) e.style.cssText = css;
+    if (text) e.textContent = text;
+    return e;
+  };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const ICONS = {
+    min:    '<path d="M5 12h14"/>',
+    close:  '<path d="M6 6l12 12M18 6L6 18"/>',
+    pause:  '<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/>',
+    skip:   '<path d="M5 5.5v13l9.5-6.5z" fill="currentColor"/><path d="M18.5 5.5v13"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+    check:  '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    warn:   '<path d="M12 4.5l9 15.5H3z"/><path d="M12 10.5v4"/><path d="M12 17.3v.1"/>',
+    dot:    '<circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none"/>',
+    pad:    '<path d="M6.5 7.5h11a4.5 4.5 0 0 1 4.4 5.4l-.6 3a2.8 2.8 0 0 1-4.7 1.4L14.5 15.5h-5L7.4 17.3a2.8 2.8 0 0 1-4.7-1.4l-.6-3a4.5 4.5 0 0 1 4.4-5.4z"/><path d="M8 10.5v3M6.5 12h3"/><path d="M15.5 11.2v.1M17.5 12.8v.1"/>',
+    screen: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    link:   '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0V4z"/><path d="M8 6H5v1.5A3 3 0 0 0 8 10.5M16 6h3v1.5a3 3 0 0 1-3 3"/><path d="M12 13v4M8.5 20h7M10 17h4"/>',
+    help:   '<circle cx="12" cy="12" r="8.5"/><path d="M9.7 9.5a2.4 2.4 0 1 1 3.4 2.2c-.7.4-1.1.9-1.1 1.8"/><path d="M12 16.8v.1"/>',
+  };
+  const ic = (name, size = 12) =>
+    `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex:none">${ICONS[name]}</svg>`;
+  const rich = (node, html) => { if (node._h !== html) { node._h = html; node.innerHTML = html; } };
+  const statusHtml = (icon, text) =>
+    `${icon ? ic(icon, 11) : ""}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(text)}</span>`;
+  const sepHtml = `<span style="display:inline-flex;vertical-align:middle;margin:0 5px;opacity:.7">${ic("dot", 4)}</span>`;
+
+  // Bloco de status padrão (mesmas proporções do Auto Quest / Game Presence originais)
+  const makeView = () => {
+    const root = el("div", "display:flex;flex-direction:column;gap:6px;");
+    const name = el("div", `font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${SHADOW}`);
+    const status = el("div", `display:flex;align-items:center;gap:5px;min-width:0;font-size:11px;color:#d5d9dd;${SHADOW}`);
+    const spacer = el("div", "height:8px;");
+    const track = el("div", "height:6px;border-radius:3px;background:rgba(43,45,49,.9);overflow:hidden;flex:none;");
+    const fill = el("div", "height:100%;width:0%;background:#5865F2;border-radius:3px;transition:width .4s ease,background .3s;");
+    track.appendChild(fill);
+    const prog = el("div", `display:flex;justify-content:space-between;font-size:11px;color:#d5d9dd;height:13px;font-variant-numeric:tabular-nums;${SHADOW}`);
+    const l = el("span"), r = el("span");
+    prog.append(l, r);
+    const foot = el("div", `display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;height:14px;${SHADOW}`);
+    const fl = el("span", "color:#d5d9dd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;");
+    const fr = el("span", "font-weight:700;color:#3ddc84;white-space:nowrap;flex:none;");
+    foot.append(fl, fr);
+    root.append(name, status, spacer, track, prog, foot);
+    return { root, name, status, fill, l, r, fl, fr };
+  };
+  const setView = (v, o) => {
+    v.name.textContent = o.name ?? "";
+    rich(v.status, statusHtml(o.icon ?? null, o.status ?? ""));
+    v.status.title = o.status ?? "";
+    v.fill.style.width = (o.pct ?? 0) + "%";
+    v.fill.style.background = o.color ?? "#5865F2";
+    v.l.textContent = o.l ?? "";
+    v.r.textContent = o.r ?? "";
+    if (o.flHtml != null) rich(v.fl, o.flHtml); else { v.fl._h = null; v.fl.textContent = o.fl ?? ""; }
+    v.fl.title = o.flTitle ?? o.fl ?? "";
+    v.fr.textContent = o.fr ?? "";
+    v.fr.style.color = o.frColor ?? "#3ddc84";
+  };
+
+  // Campo de texto com ícone
+  const mkInput = (icon, placeholder) => {
+    const wrap = el("div", "position:relative;");
+    const i = el("span", "position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#8e9297;display:flex;pointer-events:none;");
+    i.innerHTML = ic(icon, 12);
+    const input = el("input", "width:100%;box-sizing:border-box;background:rgba(43,45,49,.85);color:#f2f3f5;border:1px solid transparent;border-radius:6px;padding:5px 9px 5px 27px;font-size:11px;outline:none;transition:border-color .15s;");
+    input.placeholder = placeholder;
+    input.onfocus = () => { input.style.borderColor = "#5865F2"; };
+    input.onblur = () => { input.style.borderColor = "transparent"; };
+    input.onkeyup = (e) => e.stopPropagation();
+    input.onkeypress = (e) => e.stopPropagation();
+    wrap.append(i, input);
+    return { wrap, input };
+  };
+  const mkIconBtn = (icon, title) => {
+    const b = el("button", "background:rgba(43,45,49,.85);color:#f2f3f5;border:none;border-radius:5px;width:24px;height:18px;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;flex:none;");
+    b.title = title; b.innerHTML = ic(icon, 11);
+    return b;
+  };
+
+  // ---------- Fundo animado (imagem com movimento, GIF/WebP animado ou vídeo) ----------
+  const OVERLAY = "linear-gradient(rgba(18,19,22,.72),rgba(18,19,22,.9))";
+  const bgLayers = [el("div", "position:absolute;inset:0;opacity:0;transition:opacity .7s ease;"), el("div", "position:absolute;inset:0;opacity:0;transition:opacity .7s ease;")];
+  const bgShade = el("div", `position:absolute;inset:0;background:${OVERLAY};pointer-events:none;`);
+  const bgWrap = el("div", "position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:#1e1f22;");
+  bgWrap.append(...bgLayers, bgShade);
+  const bg = { cur: 0, key: undefined, token: 0, still: null };
+  const MEDIA_CSS = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;";
+
+  // sources: [{ url, type: "img" | "video" | "anim", still? }]
+  const setBg = (key, sources, fallback, applyStill) => {
+    if (key === bg.key) return;
+    bg.key = key;
+    const token = ++bg.token;
+    const prevI = bg.cur, nextI = 1 - bg.cur;
+    const next = bgLayers[nextI], prev = bgLayers[prevI];
+    const swap = (node, still) => {
+      if (token !== bg.token) return;
+      next.textContent = ""; next.style.background = "none";
+      if (node) next.append(node);
+      next.style.opacity = "1"; prev.style.opacity = "0";
+      bg.cur = nextI;
+      applyStill(still);
+      setTimeout(() => { if (token === bg.token) prev.textContent = ""; }, 800);
+    };
+    const toFallback = () => {
+      if (token !== bg.token) return;
+      next.textContent = ""; next.style.background = fallback || "none";
+      next.style.opacity = fallback ? "1" : "0"; prev.style.opacity = "0";
+      bg.cur = nextI;
+      applyStill(null);
+      setTimeout(() => { if (token === bg.token) prev.textContent = ""; }, 800);
+    };
+    const list = (sources ?? []).filter(s => s?.url);
+    const tryNext = (i) => {
+      if (token !== bg.token) return;
+      if (i >= list.length) return toFallback();
+      const s = list[i];
+      if (s.type === "video") {
+        const v = document.createElement("video");
+        v.style.cssText = MEDIA_CSS;
+        v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true; v.preload = "auto";
+        v.onloadeddata = () => { swap(v, s.still ?? null); v.play?.().catch(() => {}); };
+        v.onerror = () => tryNext(i + 1);
+        v.src = s.url;
+      } else {
+        const img = new Image();
+        img.decoding = "async";
+        img.style.cssText = MEDIA_CSS;
+        img.onload = () => {
+          if (s.type === "img" && !REDUCED) img.className = "h288-kb";   // imagem estática: zoom lento
+          swap(img, s.url);
+        };
+        img.onerror = () => tryNext(i + 1);
+        img.src = s.url;
+      }
+    };
+    if (!list.length) toFallback(); else tryNext(0);
+  };
+
+  // ---------- Switch (toggle) ----------
+  const mkSwitch = (onChange) => {
+    const b = el("button", "position:relative;width:38px;height:20px;border-radius:10px;border:none;padding:0;cursor:pointer;flex:none;transition:background .2s;background:#4e5058;");
+    b.setAttribute("role", "switch"); b.setAttribute("aria-checked", "false");
+    const knob = el("span", "position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s cubic-bezier(.3,.9,.4,1);box-shadow:0 1px 3px rgba(0,0,0,.4);");
+    b.appendChild(knob);
+    let state = false;
+    const set = (v) => {
+      v = !!v;
+      if (v === state && b._init) return;
+      state = v; b._init = true;
+      b.setAttribute("aria-checked", String(v));
+      b.style.background = v ? "#23a55a" : "#4e5058";
+      knob.style.transform = v ? "translateX(18px)" : "translateX(0)";
+    };
+    b.onclick = () => onChange(!state);
+    set(false);
+    return { el: b, set, get: () => state };
+  };
+
+  // ---------- Estilos ----------
+  const styleTag = el("style");
+  styleTag.id = "h288-style";
+  styleTag.textContent = `
+    #h288-ui button,#h288-ui input,#h288-ui select{font-family:${FONT}}
+    #h288-ui input::placeholder{color:#8e9297}
+    #h288-ui button:focus-visible,#h288-ui select:focus-visible{outline:2px solid #5865F2;outline-offset:1px}
+    #h288-ui .h288-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;background:transparent;border:none;color:#aeb4ba;font-size:11px;font-weight:700;padding:6px 0;cursor:pointer;border-radius:6px;position:relative;z-index:1;transition:color .15s;${SHADOW}}
+    #h288-ui .h288-tab:hover{color:#fff}
+    #h288-ui .h288-tab.on{color:#fff}
+    #h288-ui .h288-dot{width:6px;height:6px;border-radius:50%;background:#6d6f78;flex:none;transition:background .2s}
+    #h288-ui .h288-dot.on{background:#23a55a}
+    #h288-ui .h288-dot.busy{background:#5865F2;animation:h288-pulse 1.2s ease-in-out infinite}
+    #h288-ui .h288-dot.warn{background:#f0b232}
+    #h288-ui .h288-dot.err{background:#ed4245}
+    #h288-ui .h288-item{display:flex;align-items:center;gap:7px;width:100%;text-align:left;background:transparent;color:#f2f3f5;border:none;padding:4px 7px;cursor:pointer;font-size:11px;border-radius:4px;transition:background .15s;flex:none}
+    #h288-ui .h288-item .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+    #h288-ui .h288-item .c{flex:none;font-size:10px;font-weight:700;color:#f0b232}
+    #h288-ui .h288-item .s{flex:none;max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;color:#8e9297}
+    #h288-ui .h288-item:hover{background:rgba(255,255,255,.1)}
+    #h288-ui .h288-item.on{background:rgba(88,101,242,.4)}
+    #h288-ui .h288-ico{width:16px;height:16px;border-radius:50%;flex:none;background:#2b2d31 center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#c4c9ce}
+    #h288-ui .h288-list{display:flex;flex-direction:column;gap:1px;overflow-y:auto;background:rgba(18,19,22,.6);border-radius:6px;padding:3px}
+    #h288-ui .h288-list::-webkit-scrollbar{width:5px}
+    #h288-ui .h288-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px}
+    #h288-ui .h288-lbl{font-size:10px;color:#aeb4ba;font-weight:700;${SHADOW}}
+    #h288-ui .h288-seg{flex:1;background:transparent;color:#c4c9ce;border:none;border-radius:4px;padding:3px 0;cursor:pointer;font-size:11px;font-weight:600;transition:background .15s,color .15s}
+    #h288-ui .h288-seg:hover:not(:disabled){color:#fff}
+    #h288-ui .h288-seg.on{background:#5865F2;color:#fff}
+    #h288-ui .h288-seg:disabled{opacity:.35;cursor:not-allowed}
+    #h288-ui .h288-res{display:block;width:100%;text-align:left;background:transparent;color:#f2f3f5;border:none;padding:4px 7px;cursor:pointer;font-size:11px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #h288-ui .h288-res:hover{background:rgba(255,255,255,.1)}
+    #h288-ui .h288-kb{animation:h288-kb 28s ease-in-out infinite alternate}
+    #h288-ui .h288-shake{animation:h288-shake .35s}
+    #h288-ui.h288-hide,#h288-bubble.h288-hide{opacity:0 !important}
+    #h288-ui.h288-hide:hover,#h288-bubble.h288-hide:hover{opacity:1 !important}
+    #h288-bubble:hover{filter:brightness(1.15)}
+    @keyframes h288-kb{0%{transform:scale(1.04) translate(0,0)}100%{transform:scale(1.18) translate(-2.5%,-2%)}}
+    @keyframes h288-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+    @keyframes h288-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+    @media (prefers-reduced-motion:reduce){#h288-ui .h288-kb,#h288-ui .h288-dot.busy{animation:none}}
+  `;
+  document.head.appendChild(styleTag);
+  onDispose(() => styleTag.remove());
+
+  // ======================================================================
+  //  MÓDULO 1 • AUTO QUEST (roda sozinho ao executar)
+  // ======================================================================
+  const quest = (() => {
+    const STALL_MS = 5 * 60000, MAX_TRIES = 3;
+    const DESKTOP_ONLY = ["PLAY_ON_DESKTOP", "STREAM_ON_DESKTOP"];
+    const SUPPORTED = ["WATCH_VIDEO", "WATCH_VIDEO_ON_MOBILE", "PLAY_ON_DESKTOP", "STREAM_ON_DESKTOP", "PLAY_ACTIVITY"];
+    const TASK_LABEL = {
+      WATCH_VIDEO: "Assistindo vídeo", WATCH_VIDEO_ON_MOBILE: "Assistindo vídeo",
+      PLAY_ON_DESKTOP: "Simulando jogo", STREAM_ON_DESKTOP: "Simulando stream (1 pessoa na call)",
+      PLAY_ACTIVITY: "Completando atividade",
+    };
+    const view = makeView();
+    const unavailable = !api ? "Cliente de API do Discord não encontrado." : (!QuestsStore || !FluxDispatcher ? "Módulos de quests não encontrados." : null);
+
+    const ctl = { paused: false, cancelled: false, cancel: null, session: null };
+    const ok = new Set(), failed = new Set(), tries = new Map();
+    const S = {
+      name: "Procurando missões...", status: "", done: 0, needed: 0, base: 0, baseAt: Date.now(), lastGain: Date.now(),
+      live: false, total: 0, concluded: 0, remaining: 0, failed: 0, skipped: 0, finished: false, warn: false,
+    };
+    let running = false;
+    let bgInfo = { key: null, sources: [] };
+
+    const waitResume = async () => { while (ctl.paused && !ctl.cancelled) await sleep(250); };
+    const psleep = async (ms) => {
+      let left = ms;
+      while (left > 0 && !ctl.cancelled) {
+        if (ctl.paused) { await sleep(250); continue; }
+        const s = Math.min(250, left); await sleep(s); left -= s;
+      }
+    };
+    const errMsg = (e) => e?.body?.message ?? e?.message ?? (e?.status ? `HTTP ${e.status}` : String(e));
+    const post = async (url, body) => {
+      for (let i = 0; i < 4; i++) {
+        try {
+          const r = await api.post({ url, body });
+          if (r?.status === 429) { await psleep(((r.body?.retry_after ?? 5) + 1) * 1000); continue; }
+          if (r?.status >= 400) { const e = new Error(r.body?.message ?? `HTTP ${r.status}`); e.status = r.status; throw e; }
+          return r;
+        } catch (e) {
+          if (e?.status === 429 && i < 3) { await psleep(((e.body?.retry_after ?? 5) + 1) * 1000); continue; }
+          throw new Error(errMsg(e));
+        }
+      }
+      throw new Error("Limite de requisições (429)");
+    };
+
+    const isActiveEnrolled = (q) =>
+      q.userStatus?.enrolledAt && new Date(q.config.expiresAt).getTime() > Date.now() &&
+      SUPPORTED.some(t => q.config.taskConfigV2?.tasks?.[t]);
+    const usableTask = (q) => SUPPORTED.find(t => q.config.taskConfigV2?.tasks?.[t] && (IS_APP || !DESKTOP_ONLY.includes(t))) ?? null;
+    const pending = () => [...QuestsStore.quests.values()].filter(q =>
+      isActiveEnrolled(q) && !q.userStatus?.completedAt && !ok.has(q.id) && !failed.has(q.id) && usableTask(q));
+    const refreshCounts = () => {
+      const all = [...QuestsStore.quests.values()].filter(isActiveEnrolled);
+      const usable = all.filter(q => q.userStatus?.completedAt || usableTask(q));
+      S.skipped = all.filter(q => !q.userStatus?.completedAt && !usableTask(q)).length;
+      S.total = usable.length;
+      S.concluded = usable.filter(q => q.userStatus?.completedAt || ok.has(q.id)).length;
+      S.failed = usable.filter(q => failed.has(q.id)).length;
+      S.remaining = Math.max(0, S.total - S.concluded - S.failed);
+    };
+    const appIdOf = (q) => {
+      const tasks = q.config.taskConfigV2?.tasks ?? {};
+      for (const t of Object.values(tasks)) if (t?.applications?.[0]?.id) return t.applications[0].id;
+      return q.config.application?.id ?? q.id;
+    };
+    const currentQuest = (q) => QuestsStore.getQuest?.(q.id) ?? QuestsStore.quests.get(q.id) ?? q;
+    const readProgress = (q, taskName) => {
+      const cur = currentQuest(q);
+      return cur.config.configVersion === 1 ? (cur.userStatus?.streamProgressSeconds ?? 0) : Math.floor(cur.userStatus?.progress?.[taskName]?.value ?? 0);
+    };
+    const isCompleted = (q) => !!currentQuest(q).userStatus?.completedAt;
+    const setReal = (v) => {
+      if (typeof v !== "number" || Number.isNaN(v)) return;
+      if (v > S.base) { S.base = v; S.baseAt = Date.now(); S.lastGain = Date.now(); }
+      S.done = Math.max(S.done, S.base);
+      render();
+    };
+    const checkStall = () => { if (Date.now() - S.lastGain > STALL_MS) throw new Error("Sem progresso do Discord há 5 min"); };
+
+    // Mídia da quest: vídeo (animado) quando existir, imagens como reserva
+    const toCdn = (f, q, allowVideo) => {
+      if (typeof f !== "string" || !f) return null;
+      const isVid = /\.(mp4|webm)(\?|$)/i.test(f);
+      if (/\.m3u8(\?|$)/i.test(f)) return null;
+      if (isVid !== !!allowVideo) return null;
+      if (/^https?:/.test(f)) return f;
+      if (f.includes("/")) return `https://cdn.discordapp.com/${f.replace(/^\//, "")}`;
+      return `https://cdn.discordapp.com/quests/${q.id}/${f}`;
+    };
+    const questSources = (q) => {
+      const a = q.config.assets ?? {};
+      const pref = ["questBarHeroImage", "heroImage", "hero", "gameTile", "gameTileLight", "gameTileDark", "logotype", "logotypeLight", "logotypeDark"];
+      const imgs = [...new Set([...pref.map(k => a[k]), ...Object.values(a)].map(v => toCdn(v, q, false)).filter(Boolean))];
+      const vids = [...new Set([...Object.entries(a).filter(([k]) => /video/i.test(k)).map(([, v]) => v), ...Object.values(a)].map(v => toCdn(v, q, true)).filter(Boolean))];
+      return [
+        ...vids.map(url => ({ url, type: "video", still: imgs[0] ?? null })),
+        ...imgs.map(url => ({ url, type: /\.gif(\?|$)/i.test(url) ? "anim" : "img" })),
+      ];
+    };
+
+    const render = () => {
+      const pct = S.finished ? (S.concluded > 0 ? 100 : 0) : (S.needed ? Math.min(100, (S.done / S.needed) * 100) : 0);
+      const parts = [`Faltam ${S.remaining}`];
+      if (S.failed) parts.push(`${S.failed} com erro`);
+      if (S.skipped) parts.push(`${S.skipped} só no app`);
+      if (unavailable) {
+        return setView(view, { name: "Auto Quest indisponível", status: unavailable, icon: "warn", color: "#ed4245", pct: 0 });
+      }
+      let status = S.status, icon = S.warn ? "warn" : null;
+      if (ctl.paused && !S.finished) { status = "Pausado (ligue o switch para continuar)"; icon = "pause"; }
+      setView(view, {
+        name: S.name, status, icon, pct,
+        color: S.finished ? "#23a55a" : (ctl.paused ? "#f0b232" : "#5865F2"),
+        l: !S.finished && S.needed ? `${fmtMin(S.done)} / ${fmtMin(S.needed)}` : "",
+        r: S.finished && !S.concluded ? "" : `${Math.floor(pct)}%`,
+        flHtml: S.finished ? esc("Ligue o switch para procurar de novo") : parts.map(esc).join(sepHtml),
+        flTitle: parts.join(", "),
+        fr: `Concluídas ${S.concluded}/${S.total}`,
+      });
+    };
+
+    const pause = () => {
+      if (S.finished || ctl.cancelled || ctl.paused || !running) return;
+      S.base = S.done; ctl.paused = true;
+      try { ctl.session?.stop?.(); } catch {}
+      render(); refreshHub();
+    };
+    const resume = () => {
+      if (!ctl.paused) return;
+      ctl.paused = false; S.baseAt = Date.now(); S.lastGain = Date.now();
+      try { ctl.session?.start?.(); } catch {}
+      render(); refreshHub();
+    };
+
+    const ticker = setInterval(() => {
+      if (!S.live || ctl.paused || ctl.cancelled || S.finished || !S.needed) return;
+      const est = S.base + Math.min(90, (Date.now() - S.baseAt) / 1000);
+      S.done = Math.max(S.done, Math.min(S.needed - 1, est));
+      render();
+    }, 1000);
+    onDispose(() => {
+      ctl.cancelled = true; ctl.paused = false;
+      try { ctl.cancel?.(); } catch {}
+      try { ctl.session?.stop?.(); } catch {}
+      clearInterval(ticker);
+    });
+
+    // ----- tarefas -----
+    async function watchVideo(q, taskName, needed) {
+      const enrolledAt = new Date(q.userStatus.enrolledAt).getTime();
+      const speed = 7;
+      let done = q.userStatus?.progress?.[taskName]?.value ?? 0;
+      setReal(done);
+      let serverDone = false;
+      while (done < needed && !ctl.cancelled) {
+        await waitResume();
+        if (ctl.cancelled) return false;
+        const maxAllowed = Math.floor((Date.now() - enrolledAt) / 1000) + 10;
+        if (done + speed > maxAllowed && done + speed < needed) { await psleep(1000); continue; }
+        const next = Math.min(needed, done + speed);
+        const res = await post(`/quests/${q.id}/video-progress`, { timestamp: Math.min(needed, next + Math.random()) });
+        if (res?.body?.completed_at != null) serverDone = true;
+        done = next; setReal(done);
+        if (serverDone) break;
+        await psleep(1000);
+      }
+      if (!serverDone && !ctl.cancelled) {
+        const res = await post(`/quests/${q.id}/video-progress`, { timestamp: needed });
+        serverDone = res?.body?.completed_at != null;
+      }
+      return serverDone;
+    }
+
+    async function playOnDesktop(q, needed) {
+      if (!RunningGameStore) throw new Error("RunningGameStore não encontrado (use o app desktop)");
+      const appId = appIdOf(q);
+      const isV1 = q.config.configVersion === 1;
+      let app = null;
+      try { app = (await api.get({ url: `/applications/public?application_ids=${appId}` }))?.body?.[0] ?? null; } catch {}
+      if (!app) {
+        const t = q.config.taskConfigV2?.tasks?.PLAY_ON_DESKTOP;
+        const fromTask = t?.applications?.[0] ?? q.config.application ?? null;
+        app = { id: appId, name: fromTask?.name ?? q.config.messages?.gameTitle ?? "Game", executables: fromTask?.executables };
+      }
+      const safeName = (app.name ?? "Game").replace(/[\/\\:*?"<>|]/g, "");
+      const exeName = (app.executables?.find(x => x.os === "win32")?.name ?? `${safeName}.exe`).replace(">", "");
+      const pid = Math.floor(Math.random() * 30000) + 1000;
+      const fakeGame = {
+        cmdLine: `C:\\Program Files\\${safeName}\\${exeName}`, exeName,
+        exePath: `c:/program files/${safeName.toLowerCase()}/${exeName}`,
+        hidden: false, isLauncher: false, id: appId, name: app.name ?? safeName,
+        pid, pidPath: [pid], processName: app.name ?? safeName, start: Date.now(),
+      };
+      const prevGet = RunningGameStore.getRunningGames, prevPid = RunningGameStore.getGameForPID;
+      let on = false;
+      const isFake = (x) => x.id === fakeGame.id && x.pid === fakeGame.pid;
+      const myGet = function (...a) {
+        const real = prevGet.apply(RunningGameStore, a);
+        if (!on || !Array.isArray(real) || real.some(isFake)) return real;
+        return [...real, fakeGame];
+      };
+      const myPid = function (p) { return (on && p === fakeGame.pid) ? fakeGame : prevPid.call(RunningGameStore, p); };
+      const start = () => {
+        if (on) return; on = true;
+        RunningGameStore.getRunningGames = myGet; RunningGameStore.getGameForPID = myPid;
+        FluxDispatcher.dispatch({ type: "RUNNING_GAMES_CHANGE", removed: [], added: [fakeGame], games: myGet.call(RunningGameStore) });
+      };
+      const stopGame = () => {
+        if (!on) return; on = false;
+        if (RunningGameStore.getRunningGames === myGet) RunningGameStore.getRunningGames = prevGet;
+        if (RunningGameStore.getGameForPID === myPid) RunningGameStore.getGameForPID = prevPid;
+        FluxDispatcher.dispatch({ type: "RUNNING_GAMES_CHANGE", removed: [fakeGame], added: [], games: RunningGameStore.getRunningGames() });
+      };
+      setReal(readProgress(q, "PLAY_ON_DESKTOP"));
+      S.lastGain = Date.now(); S.live = true;
+      ctl.session = { start, stop: stopGame };
+      start();
+      const onBeat = (data) => setReal(isV1 ? data?.userStatus?.streamProgressSeconds : Math.floor(data?.userStatus?.progress?.PLAY_ON_DESKTOP?.value ?? 0));
+      FluxDispatcher.subscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", onBeat);
+      try {
+        await new Promise((resolve, reject) => {
+          const poll = setInterval(() => {
+            try {
+              if (ctl.cancelled) { clearInterval(poll); return resolve(); }
+              if (ctl.paused) return;
+              const p = readProgress(q, "PLAY_ON_DESKTOP"); setReal(p);
+              if (p >= needed || isCompleted(q)) { clearInterval(poll); return resolve(); }
+              checkStall();
+            } catch (e) { clearInterval(poll); reject(e); }
+          }, 3000);
+          ctl.cancel = () => { clearInterval(poll); resolve(); };
+        });
+      } finally { FluxDispatcher.unsubscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", onBeat); stopGame(); S.live = false; }
+      return false;
+    }
+
+    async function streamOnDesktop(q, needed) {
+      if (!StreamingStore) throw new Error("StreamingStore não encontrado (use o app desktop)");
+      const appId = appIdOf(q);
+      const isV1 = q.config.configVersion === 1;
+      const pid = Math.floor(Math.random() * 30000) + 1000;
+      const realFunc = StreamingStore.getStreamerActiveStreamMetadata;
+      let on = false;
+      const start = () => { if (on) return; on = true; StreamingStore.getStreamerActiveStreamMetadata = () => ({ id: appId, pid, sourceName: null }); };
+      const stopStream = () => { if (!on) return; on = false; StreamingStore.getStreamerActiveStreamMetadata = realFunc; };
+      setReal(readProgress(q, "STREAM_ON_DESKTOP"));
+      S.lastGain = Date.now(); S.live = true;
+      ctl.session = { start, stop: stopStream };
+      start();
+      const onBeat = (data) => setReal(isV1 ? data?.userStatus?.streamProgressSeconds : Math.floor(data?.userStatus?.progress?.STREAM_ON_DESKTOP?.value ?? 0));
+      FluxDispatcher.subscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", onBeat);
+      try {
+        await new Promise((resolve, reject) => {
+          const poll = setInterval(() => {
+            try {
+              if (ctl.cancelled) { clearInterval(poll); return resolve(); }
+              if (ctl.paused) return;
+              const p = readProgress(q, "STREAM_ON_DESKTOP"); setReal(p);
+              if (p >= needed || isCompleted(q)) { clearInterval(poll); return resolve(); }
+              checkStall();
+            } catch (e) { clearInterval(poll); reject(e); }
+          }, 3000);
+          ctl.cancel = () => { clearInterval(poll); resolve(); };
+        });
+      } finally { FluxDispatcher.unsubscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", onBeat); stopStream(); S.live = false; }
+      return false;
+    }
+
+    const activityChannels = () => {
+      const ids = [];
+      try { for (const c of ChannelStore?.getSortedPrivateChannels?.() ?? []) if (c?.id) ids.push(c.id); } catch {}
+      try { for (const g of Object.values(GuildChannelStore?.getAllGuilds?.() ?? {})) for (const v of g?.VOCAL ?? []) if (v?.channel?.id) ids.push(v.channel.id); } catch {}
+      return [...new Set(ids)].slice(0, 8);
+    };
+
+    async function playActivity(q, needed) {
+      const channels = activityChannels();
+      if (!channels.length) throw new Error("Nenhum canal encontrado para a atividade");
+      let ci = 0, noGain = 0, badRuns = 0, beats = 0, serverDone = false;
+      setReal(Math.max(q.userStatus?.progress?.PLAY_ACTIVITY?.value ?? 0, readProgress(q, "PLAY_ACTIVITY")));
+      S.lastGain = Date.now(); S.live = true;
+      try {
+        while (!ctl.cancelled) {
+          await waitResume();
+          if (ctl.cancelled) return false;
+          checkStall();
+          const streamKey = `call:${channels[ci]}:1`;
+          let res;
+          try { res = await post(`/quests/${q.id}/heartbeat`, { stream_key: streamKey, terminal: false }); badRuns = 0; }
+          catch (e) {
+            S.status = `${e.message}, trocando de canal`; S.warn = true; render();
+            if (++badRuns >= channels.length * 2) throw e;
+            ci = (ci + 1) % channels.length;
+            await psleep(2000);
+            continue;
+          }
+          beats++;
+          const fromRes = res?.body?.progress?.PLAY_ACTIVITY?.value;
+          const progress = Math.floor(typeof fromRes === "number" ? fromRes : readProgress(q, "PLAY_ACTIVITY"));
+          const before = S.base;
+          setReal(progress);
+          S.status = `${TASK_LABEL.PLAY_ACTIVITY} (batida ${beats})`; S.warn = false;
+          if (S.base > before) noGain = 0;
+          else if (++noGain >= 3) { ci = (ci + 1) % channels.length; noGain = 0; }
+          if (res?.body?.completed_at != null) { serverDone = true; break; }
+          if (progress >= needed) {
+            const fin = await post(`/quests/${q.id}/heartbeat`, { stream_key: streamKey, terminal: true });
+            serverDone = fin?.body?.completed_at != null;
+            break;
+          }
+          await psleep(20000);
+        }
+      } finally { S.live = false; }
+      return serverDone;
+    }
+
+    const confirmDone = async (q, flag) => {
+      if (flag || isCompleted(q)) return true;
+      S.status = "Aguardando confirmação do Discord..."; S.warn = false; render();
+      for (let i = 0; i < 20 && !ctl.cancelled; i++) { await sleep(1000); if (isCompleted(q)) return true; }
+      return false;
+    };
+
+    // ----- loop principal -----
+    const loop = async () => {
+      refreshCounts(); render();
+      while (!ctl.cancelled) {
+        await waitResume();
+        if (ctl.cancelled) return;
+        refreshCounts();
+        const q = pending()[0];
+        if (!q) break;
+        const taskName = usableTask(q);
+        const needed = q.config.taskConfigV2.tasks[taskName].target;
+        const attempt = (tries.get(q.id) ?? 0) + 1;
+        S.name = q.config.messages?.questName ?? "Missão";
+        S.status = (TASK_LABEL[taskName] ?? taskName) + (attempt > 1 ? ` (tentativa ${attempt}/${MAX_TRIES})` : ""); S.warn = false;
+        S.needed = needed; S.done = 0; S.base = 0; S.baseAt = Date.now(); S.lastGain = Date.now(); S.live = false;
+        bgInfo = { key: q.id, sources: questSources(q) };
+        render(); refreshHub();
+        try {
+          let flag = false;
+          if (taskName === "WATCH_VIDEO" || taskName === "WATCH_VIDEO_ON_MOBILE") flag = await watchVideo(q, taskName, needed);
+          else if (taskName === "PLAY_ON_DESKTOP") flag = await playOnDesktop(q, needed);
+          else if (taskName === "STREAM_ON_DESKTOP") flag = await streamOnDesktop(q, needed);
+          else if (taskName === "PLAY_ACTIVITY") flag = await playActivity(q, needed);
+          if (ctl.cancelled) return;
+          if (await confirmDone(q, flag)) { ok.add(q.id); S.done = needed; render(); }
+          else throw new Error("Discord não confirmou a conclusão");
+        } catch (err) {
+          if (ctl.cancelled) return;
+          console.error(`[${TITLE}] Erro em "${S.name}" (${taskName}):`, err);
+          tries.set(q.id, attempt);
+          if (attempt >= MAX_TRIES) failed.add(q.id);
+          S.live = false;
+          S.status = `${err?.message ?? err}` + (attempt < MAX_TRIES ? ", tentando de novo" : ""); S.warn = true;
+          render();
+          await sleep(6000);
+        } finally { ctl.session = null; ctl.cancel = null; S.live = false; }
+        refreshCounts(); render();
+      }
+      if (ctl.cancelled) return;
+      refreshCounts();
+      S.finished = true; S.needed = 0; S.live = false; S.warn = false;
+      bgInfo = { key: null, sources: [] };
+      if (S.concluded > 0) {
+        S.name = "Sem mais missões";
+        S.status = S.failed ? `${S.failed} missão(ões) com erro, veja o console (F12).`
+          : S.skipped ? `${S.skipped} missão(ões) de jogo/stream só funcionam no app desktop.`
+          : "Todas as missões aceitas foram concluídas.";
+      } else if (S.skipped > 0) {
+        S.name = "Nada a fazer no navegador"; S.status = `${S.skipped} missão(ões) exigem o app desktop (jogo/stream).`;
+      } else {
+        S.name = "Nenhuma missão encontrada"; S.status = "Aceite missões na página de Quests e ligue o switch.";
+      }
+      render();
+    };
+
+    const rescan = () => {
+      if (running || unavailable) return;
+      ctl.cancelled = false; ctl.paused = false; ctl.cancel = null; ctl.session = null;
+      failed.clear(); tries.clear();
+      Object.assign(S, { name: "Procurando missões...", status: "", done: 0, needed: 0, base: 0, baseAt: Date.now(), lastGain: Date.now(), live: false, finished: false, warn: false });
+      bgInfo = { key: null, sources: [] };
+      running = true;
+      loop().catch(e => console.error(`[${TITLE}]`, e)).finally(() => { running = false; render(); refreshHub(); });
+      render(); refreshHub();
+    };
+
+    return {
+      id: "quest", label: "Quests", title: "Auto Quest", icon: "trophy", view, extra: null,
+      isOn: () => running && !ctl.paused && !S.finished,
+      toggle: async (v) => { if (unavailable) return; if (v) { (S.finished || !running) ? rescan() : resume(); } else pause(); },
+      render,
+      dot: () => unavailable ? "err" : S.warn ? "warn" : ctl.paused ? "warn" : (running && !S.finished) ? "busy" : (S.finished && S.concluded > 0 ? "on" : "off"),
+      bg: () => ({ ...bgInfo, fallback: null }),
+      pct: () => (S.needed ? Math.min(100, (S.done / S.needed) * 100) : (S.finished && S.concluded ? 100 : 0)),
+      showPct: () => running && !ctl.paused && !S.finished && S.needed > 0,
+      auto: rescan,
+    };
+  })();
+
+  // ======================================================================
+  //  MÓDULO 2 • GAME PRESENCE (toggle)
+  // ======================================================================
+  const presence = (() => {
+    const HORAS_POR_JOGO = 2, GUARD_MS = 3000;
+    let METODO = "both";   // both | game | activity
+    const view = makeView();
+    const POPULAR = [
+      "Valorant","League of Legends","Counter-Strike 2","Counter-Strike: Global Offensive","Fortnite","Minecraft",
+      "Grand Theft Auto V","Roblox","Apex Legends","Overwatch 2","Rocket League","Dota 2","Call of Duty: Warzone",
+      "Call of Duty: Modern Warfare","Rainbow Six Siege","PUBG: BATTLEGROUNDS","Free Fire","Crossfire","Genshin Impact",
+      "Honkai: Star Rail","Zenless Zone Zero","Wuthering Waves","Elden Ring","Dark Souls III","Sekiro","Baldur's Gate 3",
+      "Cyberpunk 2077","The Witcher 3","Red Dead Redemption 2","Terraria","Stardew Valley","Among Us","Fall Guys",
+      "Rust","ARK: Survival Evolved","7 Days to Die","DayZ","Escape from Tarkov","Hunt: Showdown","Destiny 2",
+      "Warframe","Path of Exile","Diablo IV","Lost Ark","World of Warcraft","Final Fantasy XIV","Black Desert",
+      "Albion Online","Old School RuneScape","RuneScape","Lineage 2","Ragnarok Online","Tibia","MU Online",
+      "Team Fortress 2","Left 4 Dead 2","Garry's Mod","Half-Life 2","Portal 2","Phasmophobia","Lethal Company",
+      "Content Warning","Goose Goose Duck","Project Zomboid","Valheim","Palworld","Satisfactory",
+      "Factorio","Euro Truck Simulator 2","American Truck Simulator","Forza Horizon 5","Need for Speed",
+      "FIFA 23","EA SPORTS FC 24","NBA 2K24","eFootball","Madden NFL","Street Fighter 6","Tekken 8","Mortal Kombat 11",
+      "Brawlhalla","Smite","Paladins","Heroes of the Storm","Hearthstone","Teamfight Tactics","Marvel Rivals",
+      "The Finals","Deadlock","Splitgate","Halo Infinite","Battlefield 2042","Battlefield 1","Battlefield V",
+      "Sea of Thieves","Dead by Daylight","Back 4 Blood","Deep Rock Galactic","Helldivers 2","Monster Hunter: World",
+      "Monster Hunter Rise","Hades","Hollow Knight","Celeste","Cuphead","Slay the Spire","Vampire Survivors",
+      "Risk of Rain 2","Warhammer 40,000: Darktide","Total War: WARHAMMER III","Age of Empires II","Civilization VI",
+      "Cities: Skylines","The Sims 4","Stellaris","Hearts of Iron IV","Crusader Kings III","Europa Universalis IV",
+      "Fallout 4","Fallout 76","Skyrim","The Elder Scrolls Online","Starfield","No Man's Sky","Subnautica",
+      "Raft","The Forest","Sons of the Forest","Resident Evil 4","Resident Evil Village","Hogwarts Legacy",
+      "God of War","Spider-Man Remastered","Horizon Zero Dawn","Death Stranding","Assassin's Creed Valhalla",
+      "Assassin's Creed Odyssey","Far Cry 6","Watch Dogs 2","The Division 2","Ghost Recon Breakpoint",
+      "Naraka: Bladepoint","Rogue Company","Counter-Strike 1.6","osu!","Geometry Dash","Cult of the Lamb",
+      "Slime Rancher","Don't Starve Together","Unturned","Mount & Blade II: Bannerlord",
+      "Chivalry 2","Mordhau","For Honor","War Thunder","World of Tanks","World of Warships",
+      "Tower of Fantasy","Blue Protocol","Aion","Guild Wars 2","New World","Throne and Liberty","Dungeon Fighter Online",
+      "MapleStory","Brawl Stars","Clash of Clans","Clash Royale","Pokemon Unite","Yu-Gi-Oh! Master Duel",
+      "Magic: The Gathering Arena","Legends of Runeterra","Arc Raiders","Battlefield 6",
+      "Black Myth: Wukong","Wo Long","Lies of P","Remnant II","Lords of the Fallen","Nioh 2","Bloodborne",
+    ];
+
+    let apps = null, loading = false, on = false, paused = false;
+    let hours = HORAS_POR_JOGO, pool = [], cycleSize = 0, lastPlayed = null;
+    const active = [], wrapped = {}, inners = {};
+    let guard = null, timer = null, nextAt = null;
+    const det = { store: null, profile: null, invisible: false };
+    const fakes = () => active.filter(e => e.game).map(e => e.game);
+
+    const findApp = (name) => {
+      const n = normGame(name);
+      return apps?.find(a => normGame(a.name) === n) || apps?.find(a => normGame(a.name).startsWith(n)) || apps?.find(a => normGame(a.name).includes(n));
+    };
+    const loadApps = async () => {
+      if (apps) return true;
+      try { const r = await fetch("https://discord.com/api/v9/applications/detectable"); const j = await r.json(); if (Array.isArray(j)) { apps = j; return true; } } catch (e) { console.error(e); }
+      return false;
+    };
+
+    const LIST_FNS = ["getRunningGames", "getVisibleRunningGames", "getCandidateGames"];
+    const ONE_FNS = ["getVisibleGame", "getRunningGame"];
+    const ensureHooks = () => {
+      if (!RunningGameStore) return;
+      const S = RunningGameStore;
+      const put = (fn, build) => {
+        if (typeof S[fn] !== "function") return;
+        if (wrapped[fn] && S[fn] === wrapped[fn]) return;
+        const inner = S[fn]; const w = build(inner);
+        wrapped[fn] = w; inners[fn] = inner; S[fn] = w;
+      };
+      for (const fn of LIST_FNS) put(fn, (inner) => function (...args) {
+        const real = inner.apply(S, args) ?? [];
+        if (!Array.isArray(real)) return real;
+        const f = fakes().filter(g => !real.some(r => r.id === g.id && r.pid === g.pid));
+        return f.length ? [...real, ...f] : real;
+      });
+      for (const fn of ONE_FNS) put(fn, (inner) => function (...args) { return inner.apply(S, args) ?? fakes()[0] ?? null; });
+      put("getGameForPID", (inner) => function (pid) { return fakes().find(g => g.pid === pid) ?? inner.call(S, pid); });
+    };
+    const removeHooks = () => {
+      if (!RunningGameStore) return;
+      for (const fn of Object.keys(wrapped)) {
+        if (RunningGameStore[fn] === wrapped[fn]) RunningGameStore[fn] = inners[fn];
+        delete wrapped[fn]; delete inners[fn];
+      }
+    };
+    const dispatchGames = (removed, added) =>
+      FluxDispatcher?.dispatch({ type: "RUNNING_GAMES_CHANGE", removed, added, games: RunningGameStore.getRunningGames() });
+    const inStore = (g) => { try { return (RunningGameStore.getRunningGames() ?? []).some(r => r.id === g.id && r.pid === g.pid); } catch { return false; } };
+    const startGuard = () => {
+      if (guard) return;
+      guard = setInterval(() => {
+        if (!fakes().length) return;
+        ensureHooks();
+        const missing = fakes().filter(g => !inStore(g));
+        if (missing.length) dispatchGames([], missing);
+      }, GUARD_MS);
+    };
+    const stopGuard = () => { if (guard) { clearInterval(guard); guard = null; } };
+
+    const sendActivity = (entry) => FluxDispatcher?.dispatch({
+      type: "LOCAL_ACTIVITY_UPDATE", socketId: entry.socketId,
+      activity: { application_id: entry.app.id, name: entry.app.name, type: 0, flags: 0, timestamps: { start: entry.start } },
+    });
+    const clearActivity = (entry) => FluxDispatcher?.dispatch({ type: "LOCAL_ACTIVITY_UPDATE", socketId: entry.socketId, activity: null });
+
+    const activate = (app) => {
+      const start = Date.now();
+      const entry = { app, start, socketId: `AutoRPC-${app.id}`, usesActivity: false, game: null };
+      if ((METODO === "game" || METODO === "both") && RunningGameStore) {
+        ensureHooks();
+        const exe = app.executables?.find(x => x.os === "win32") ?? app.executables?.[0];
+        const safe = app.name.replace(/[\/\\:*?"<>|]/g, "");
+        const exeName = (exe?.name ?? `${safe}.exe`).replace(">", "");
+        const pid = Math.floor(Math.random() * 30000) + 1000;
+        entry.game = {
+          cmdLine: `C:\\Program Files\\${safe}\\${exeName}`, elevated: false, exeName,
+          exePath: `c:/program files/${safe.toLowerCase()}/${exeName}`,
+          hidden: false, isLauncher: false, id: app.id, name: app.name,
+          pid, pidPath: [pid], processName: app.name, start,
+        };
+      }
+      if (METODO === "activity" || METODO === "both" || !entry.game) entry.usesActivity = true;
+      active.push(entry);
+      if (entry.game) { dispatchGames([], [entry.game]); startGuard(); }
+      if (entry.usesActivity) sendActivity(entry);
+      return entry;
+    };
+    const deactivate = (entry) => {
+      const idx = active.indexOf(entry);
+      if (idx >= 0) active.splice(idx, 1);
+      if (entry.game) dispatchGames([entry.game], []);
+      if (entry.usesActivity) clearActivity(entry);
+      if (!fakes().length) stopGuard();
+    };
+
+    const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const nextRandom = () => {
+      if (!pool.length) {
+        pool = shuffle([...new Set(POPULAR)].filter(n => findApp(n)));
+        cycleSize = pool.length;
+        if (pool.length > 1 && pool[0] === lastPlayed) pool.push(pool.shift());
+      }
+      return pool.shift();
+    };
+    const check = () => {
+      const cur = active[0];
+      det.invisible = false;
+      if (!cur) { det.store = null; det.profile = null; return; }
+      try { det.store = RunningGameStore ? inStore({ id: cur.app.id, pid: cur.game?.pid }) : null; } catch { det.store = null; }
+      try {
+        const me = myId();
+        if (me && PresenceStore) {
+          const acts = PresenceStore.getActivities(me) ?? [];
+          det.profile = acts.some(a => a.application_id === cur.app.id || a.name === cur.app.name);
+          det.invisible = PresenceStore.getStatus(me) === "invisible";
+        } else det.profile = null;
+      } catch { det.profile = null; }
+    };
+
+    const rotateTick = () => {
+      [...active].forEach(deactivate);
+      const next = nextRandom();
+      if (next) P.play(next);
+      nextAt = Date.now() + hours * 3600 * 1000;
+    };
+    const stopRotate = () => { if (timer) { clearInterval(timer); timer = null; } nextAt = null; };
+
+    const P = {
+      play(name) {
+        const app = typeof name === "object" ? name : findApp(name);
+        if (!app || active.some(e => e.app.id === app.id)) return;
+        activate(app); lastPlayed = app.name; check(); render(); refreshHub();
+      },
+      async pick(name) {
+        if (!(await loadApps())) return;
+        const app = findApp(name); if (!app) return;
+        on = true; paused = false;
+        stopRotate();
+        [...active].forEach(deactivate);
+        P.play(app);
+        nextAt = Date.now() + hours * 3600 * 1000;
+        timer = setInterval(rotateTick, hours * 3600 * 1000);
+      },
+      skip() { if (!on) return; stopRotate(); rotateTick(); timer = setInterval(rotateTick, hours * 3600 * 1000); },
+      setHours(h) {
+        hours = h;
+        if (!on || !active.length) return render();
+        stopRotate(); nextAt = Date.now() + hours * 3600 * 1000;
+        timer = setInterval(rotateTick, hours * 3600 * 1000); render();
+      },
+      metodo(m) {
+        if (!["both", "game", "activity"].includes(m)) return;
+        const wasOn = on;
+        P.stopAll(); METODO = m;
+        if (wasOn) P.auto();
+      },
+      auto() { on = true; stopRotate(); rotateTick(); timer = setInterval(rotateTick, hours * 3600 * 1000); },
+      stopAll() { on = false; stopRotate(); [...active].forEach(deactivate); stopGuard(); removeHooks(); render(); refreshHub(); },
+    };
+    onDispose(() => { try { P.stopAll(); } catch {} });
+
+    // ----- UI do módulo -----
+    const extra = el("div", "display:flex;flex-direction:column;gap:6px;margin-top:2px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px;");
+    const pills = el("div", "display:flex;gap:5px;flex-wrap:wrap;");
+    const pill = () => el("span", "display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;");
+    const badge = el("span", `font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;background:${IS_APP ? "rgba(61,220,132,.16)" : "rgba(240,178,50,.16)"};color:${IS_APP ? "#3ddc84" : "#f0b232"};`, IS_APP ? "APP" : "NAVEGADOR");
+    const detPill = pill(), profPill = pill(), warnPill = pill();
+    pills.append(badge, detPill, profPill, warnPill);
+    const PILL = { ok: ["rgba(61,220,132,.16)", "#3ddc84"], wait: ["rgba(240,178,50,.16)", "#f0b232"], bad: ["rgba(237,66,69,.18)", "#ff6b6e"], off: ["rgba(255,255,255,.08)", "#b5bac1"] };
+    const setPill = (p, text, kind, title = "", icon = null) => {
+      rich(p, text ? (icon ? ic(icon, 10) : "") + esc(text) : "");
+      p.title = title; p.style.background = PILL[kind][0]; p.style.color = PILL[kind][1];
+      p.style.display = text ? "inline-flex" : "none";
+    };
+
+    const controls = el("div", "display:flex;gap:6px;align-items:center;");
+    const seg = el("div", "display:flex;flex:1;background:rgba(43,45,49,.85);border-radius:6px;padding:2px;gap:2px;");
+    const SEGS = [["both", "Tudo", "Detecção + perfil"], ["game", "Detecção", "Só detecção (app)"], ["activity", "Perfil", "Só presença no perfil"]];
+    const segBtns = {};
+    for (const [m, label, title] of SEGS) {
+      const b = el("button", "", label); b.className = "h288-seg"; b.title = title;
+      if (!IS_APP && m !== "activity") b.disabled = true;
+      b.onclick = () => P.metodo(m);
+      segBtns[m] = b; seg.appendChild(b);
+    }
+    const sel = el("select", "background:rgba(43,45,49,.85);color:#f2f3f5;border:none;border-radius:6px;padding:4px 5px;font-size:11px;font-weight:600;cursor:pointer;outline:none;");
+    for (const h of [1, 2, 3, 4, 6, 12]) {
+      const o = document.createElement("option"); o.value = h; o.textContent = `${h}h`; o.style.background = "#1e1f22";
+      if (h === HORAS_POR_JOGO) o.selected = true; sel.appendChild(o);
+    }
+    sel.title = "Tempo em cada jogo";
+    sel.onchange = () => P.setHours(Number(sel.value));
+    const skipBtn = mkIconBtn("skip", "Trocar de jogo agora");
+    skipBtn.onclick = () => P.skip();
+    controls.append(seg, sel, skipBtn);
+
+    const { wrap: sWrap, input } = mkInput("search", "Buscar jogo e jogar agora...");
+    const results = el("div", "display:none;flex-direction:column;background:rgba(18,19,22,.9);border-radius:6px;padding:3px;");
+    const choose = async (name) => { input.value = ""; results.style.display = "none"; results.textContent = ""; await P.pick(name); refreshHub(); };
+    input.oninput = async () => {
+      const n = normGame(input.value);
+      results.textContent = "";
+      if (!n) { results.style.display = "none"; return; }
+      if (!apps && !(await loadApps())) return;
+      const list = apps.filter(a => normGame(a.name).includes(n)).slice(0, 5);
+      if (!list.length) { results.style.display = "none"; return; }
+      for (const a of list) { const b = el("button", "", a.name); b.className = "h288-res"; b.onclick = () => choose(a.name); results.appendChild(b); }
+      results.style.display = "flex";
+    };
+    input.onkeydown = (e) => {
+      if (e.key === "Enter" && results.firstChild) results.firstChild.click();
+      if (e.key === "Escape") { input.value = ""; results.style.display = "none"; }
+      e.stopPropagation();
+    };
+    extra.append(sWrap, results, controls, pills);
+
+    // imagens do jogo (cover/ícone do app)
+    const iconCache = new Map();
+    const imageUrls = async (app) => {
+      if (iconCache.has(app.id)) return iconCache.get(app.id);
+      const hashes = [];
+      try { const r = await fetch(`https://discord.com/api/v9/applications/${app.id}/rpc`); if (r.ok) { const j = await r.json(); hashes.push(j.cover_image, j.icon); } } catch {}
+      hashes.push(app.icon, app.icon_hash);
+      const urls = [];
+      for (const h of [...new Set(hashes.filter(Boolean))]) {
+        urls.push(`https://cdn.discordapp.com/app-icons/${app.id}/${h}.png?size=512`);
+        urls.push(`https://cdn.discordapp.com/app-icons/${app.id}/${h}.webp?size=512`);
+      }
+      iconCache.set(app.id, urls);
+      return urls;
+    };
+
+    const render = () => {
+      const cur = active[0];
+      const total = hours * 3600 * 1000;
+      const remaining = nextAt ? nextAt - Date.now() : total;
+      const pct = cur && nextAt ? Math.min(100, Math.max(0, (1 - remaining / total) * 100)) : 0;
+      let status, icon = null;
+      if (loading) status = "Carregando lista de jogos...";
+      else if (cur && det.invisible) { status = "Status invisível: ninguém vê o jogo"; icon = "warn"; }
+      else if (cur && IS_APP && RunningGameStore && METODO !== "activity" && det.store === false) { status = "Detecção falhou"; icon = "warn"; }
+      else if (cur) status = "Jogando agora";
+      else status = "Desligado: ligue o switch para aparecer jogando";
+      setView(view, {
+        name: cur ? cur.app.name : (on ? "Escolhendo jogo..." : "Game Presence"),
+        status, icon, pct, color: "#5865F2",
+        l: cur ? `Jogando há ${hms(Date.now() - cur.start)}` : "",
+        r: cur && nextAt ? `Troca em ${hms(remaining)}` : "",
+        fl: cur ? `A seguir: ${pool.length ? pool[0] : "novo ciclo"}` : "",
+        fr: cur && cycleSize ? `Jogo ${Math.min(cycleSize, cycleSize - pool.length)}/${cycleSize}` : "",
+      });
+      if (!cur) { setPill(detPill, "", "off"); setPill(profPill, "", "off"); setPill(warnPill, "", "off"); }
+      else {
+        if (!IS_APP || !RunningGameStore) setPill(detPill, "Detecção: só no app", "off", "O navegador não detecta jogos.");
+        else if (METODO === "activity") setPill(detPill, "Detecção desligada", "off", "Método 'Perfil'.");
+        else setPill(detPill, "Detecção", det.store ? "ok" : "bad", "O jogo está na store de jogos do Discord.", det.store ? "check" : "close");
+        if (METODO === "game" && IS_APP) setPill(profPill, "Perfil desligado", "off", "Use 'Tudo' para os outros verem.");
+        else if (det.profile === null) setPill(profPill, "Perfil", "off", "Não consegui ler sua presença.", "min");
+        else setPill(profPill, "Perfil", det.profile ? "ok" : "wait", "Sua presença contém o jogo.", det.profile ? "check" : null);
+        setPill(warnPill, det.invisible ? "Status invisível: nada aparece" : "", "bad", "", "warn");
+      }
+      for (const [m, b] of Object.entries(segBtns)) b.classList.toggle("on", m === METODO);
+      skipBtn.style.opacity = on ? "1" : ".4";
+    };
+    let tickN = 0;
+    const tick = setInterval(() => { if (++tickN % 2 === 0) check(); }, 1000);
+    onDispose(() => clearInterval(tick));
+
+    return {
+      id: "game", label: "Jogo", title: "Game Presence", icon: "pad", view, extra,
+      isOn: () => on,
+      toggle: async (v) => {
+        if (v === on || loading) return;
+        if (!v) return P.stopAll();
+        loading = true; render(); refreshHub();
+        const okLoad = await loadApps();
+        loading = false;
+        if (!okLoad) { render(); refreshHub(); return; }
+        P.auto(); check(); render(); refreshHub();
+      },
+      render,
+      dot: () => loading ? "busy" : !on ? "off" : (det.invisible || (IS_APP && RunningGameStore && METODO !== "activity" && active[0] && det.store === false)) ? "warn" : "on",
+      bg: () => {
+        const cur = active[0];
+        if (!cur) return { key: null, sources: [], fallback: null };
+        const urls = iconCache.get(cur.app.id);
+        if (!urls) imageUrls(cur.app).then(refreshHub);
+        return { key: `${cur.app.id}:${urls ? urls.length : 0}`, sources: (urls ?? []).map(url => ({ url, type: "img" })), fallback: gradFor(cur.app.name) };
+      },
+      pct: () => 0, showPct: () => false,
+    };
+  })();
+
+  // ======================================================================
+  //  MÓDULO 3 • FAKE STREAM (toggle): entra na call e transmite um vídeo
+  // ======================================================================
+  const stream = (() => {
+    const view = makeView();
+    const getVoiceChannels = (guildId) => {
+      try {
+        const data = GuildChannelStore.getChannels?.(guildId)?.VOCAL ?? GuildChannelStore.getAllGuilds?.()?.[guildId]?.VOCAL ?? [];
+        return data.map(v => v?.channel).filter(c => c?.id && c.type === 2);
+      } catch { return []; }
+    };
+    const voiceCounts = (guildId) => {
+      const out = {};
+      try {
+        const me = myId();
+        for (const [uid, s] of Object.entries(VoiceStateStore.getVoiceStates(guildId) ?? {})) if (uid !== me && s?.channelId) out[s.channelId] = (out[s.channelId] ?? 0) + 1;
+      } catch {}
+      return out;
+    };
+    const getEmptyChannels = (gid) => { const c = voiceCounts(gid); return getVoiceChannels(gid).filter(ch => !c[ch.id]); };
+    const guildMedia = (g, size) => {
+      if (!g?.icon) return null;
+      const anim = g.icon.startsWith("a_");
+      return { url: `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.${anim ? "gif" : "png"}?size=${size}`, anim };
+    };
+    const getServers = () => {
+      try {
+        return Object.values(GuildStore.getGuilds() ?? {}).filter(g => g?.id && getVoiceChannels(g.id).length > 0)
+          .map(g => ({ id: g.id, name: g.name, icon: guildMedia(g, 128)?.url ?? null, bg: guildMedia(g, 512) }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      } catch { return []; }
+    };
+    const searchChannels = (query, guildId) => {
+      const n = normText(query).trim(); if (!n) return [];
+      const servers = guildId ? getServers().filter(s => s.id === guildId) : getServers();
+      const out = [];
+      for (const g of servers) {
+        const counts = voiceCounts(g.id);
+        for (const ch of getVoiceChannels(g.id)) if (normText(ch.name).includes(n)) out.push({ ch, guild: g, count: counts[ch.id] ?? 0 });
+      }
+      return out.slice(0, 50);
+    };
+    const connected = (guildId, channelId) => {
+      try { if (SelectedChannelStore?.getVoiceChannelId?.() === channelId) return true; } catch {}
+      try { return VoiceStateStore.getVoiceStates(guildId)?.[myId()]?.channelId === channelId; } catch { return false; }
+    };
+
+    let streamKey = null;
+    const onCreate = (d) => { const k = d?.streamKey ?? (typeof d === "string" ? d : null); if (k && myId() && k.endsWith(myId())) streamKey = k; };
+    const onDelete = (d) => { const k = d?.streamKey ?? (typeof d === "string" ? d : null); if (k && k === streamKey) streamKey = null; };
+    FluxDispatcher?.subscribe?.("STREAM_CREATE", onCreate);
+    FluxDispatcher?.subscribe?.("STREAM_DELETE", onDelete);
+    onDispose(() => { try { FluxDispatcher?.unsubscribe?.("STREAM_CREATE", onCreate); FluxDispatcher?.unsubscribe?.("STREAM_DELETE", onDelete); } catch {} });
+    const storeStream = () => { try { return StreamStore?.getCurrentUserActiveStream?.() ?? null; } catch { return null; } };
+    const isLive = () => !!streamKey || !!storeStream();
+
+    // links de vídeo
+    const HOST = location.hostname;
+    const parseMedia = (raw) => {
+      let u; try { u = new URL(String(raw).trim()); } catch { return null; }
+      const h = u.hostname.replace(/^(www|m|music)\./, ""), p = u.pathname;
+      const iframe = (label, src) => ({ kind: "iframe", label, src });
+      if (h === "youtube.com" || h === "youtu.be") {
+        const id = h === "youtu.be" ? p.slice(1) : (u.searchParams.get("v") || (p.match(/^\/(?:shorts|embed|live)\/([\w-]{6,})/) || [])[1]);
+        if (!id) return null;
+        const t = parseInt(u.searchParams.get("t") || u.searchParams.get("start") || "0", 10) || 0;
+        return iframe("YouTube", `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1${t ? `&start=${t}` : ""}`);
+      }
+      if (h === "twitch.tv" || h === "clips.twitch.tv") {
+        const clip = h === "clips.twitch.tv" ? p.slice(1) : (p.match(/\/clip\/([\w-]+)/) || [])[1];
+        if (clip) return iframe("Twitch", `https://clips.twitch.tv/embed?clip=${clip}&parent=${HOST}&autoplay=true`);
+        const vod = (p.match(/^\/videos\/(\d+)/) || [])[1];
+        if (vod) return iframe("Twitch", `https://player.twitch.tv/?video=v${vod}&parent=${HOST}&autoplay=true`);
+        const ch = (p.match(/^\/([\w]+)/) || [])[1];
+        return ch ? iframe("Twitch", `https://player.twitch.tv/?channel=${ch}&parent=${HOST}&autoplay=true`) : null;
+      }
+      if (h === "vimeo.com") { const id = (p.match(/\/(\d+)/) || [])[1]; return id ? iframe("Vimeo", `https://player.vimeo.com/video/${id}?autoplay=1`) : null; }
+      if (h === "streamable.com") { const id = (p.match(/^\/(?:e\/)?([\w]+)/) || [])[1]; return id ? iframe("Streamable", `https://streamable.com/e/${id}?autoplay=1`) : null; }
+      return { kind: "video", label: /\.(mp4|webm|ogv|mov|m4v|mp3)(\?|#|$)/i.test(p) ? "Vídeo" : "Link", src: u.href };
+    };
+
+    // palco: o vídeo em tela cheia por cima do Discord (a janela do Discord é a fonte capturada)
+    let stage = null;
+    const hideStage = () => { stage?.remove(); stage = null; };
+    const showStage = (media, onEnded, onError) => {
+      hideStage();
+      stage = el("div", "position:fixed;inset:0;z-index:2147483646;background:#000;display:flex;align-items:center;justify-content:center;");
+      stage.id = "h288-stage";
+      let node;
+      if (media.kind === "iframe") {
+        node = document.createElement("iframe");
+        node.allow = "autoplay; fullscreen; encrypted-media; picture-in-picture";
+        node.setAttribute("allowfullscreen", ""); node.referrerPolicy = "origin";
+        node.style.cssText = "width:100%;height:100%;border:0;background:#000;";
+        node.src = media.src;
+      } else {
+        node = document.createElement("video");
+        node.autoplay = true; node.playsInline = true;
+        node.style.cssText = "width:100%;height:100%;object-fit:contain;background:#000;";
+        node.onended = onEnded; node.onerror = onError; node.src = media.src;
+        node.play?.().catch(() => {});
+      }
+      stage.appendChild(node);
+      document.body.appendChild(stage);
+    };
+    onDispose(hideStage);
+
+    // estado
+    let active = false, busy = false;
+    let curChannel = null, curGuild = null, curMedia = null, joinedByUs = false, startedAt = null;
+    let phase = "idle", phaseAt = 0, note = "", wasLive = false;
+    let selGuild = null, selChannel = null, msg = "";
+    const setPhase = (p, n = "") => { phase = p; phaseAt = Date.now(); note = n; render(); refreshHub(); };
+
+    const getSources = async () => {
+      let list = null;
+      try { if (fns.sources && MediaEngineStore) list = await fns.sources(MediaEngineStore.getMediaEngine(), IS_WIN, ["screen", "window"], null); } catch (e) { console.warn(`[${TITLE}] getDesktopSources:`, e); }
+      if (!list?.length) {
+        try { list = await DiscordNative?.desktopCapture?.getDesktopCaptureSources?.({ types: ["window", "screen"], thumbnailSize: { width: 0, height: 0 } }); } catch {}
+      }
+      return list ?? [];
+    };
+    const goLive = async (channel, guild) => {
+      if (!fns.start) { console.warn(`[${TITLE}] STREAM_START não encontrado.`); return false; }
+      const list = await getSources();
+      console.log(`[${TITLE}] fontes de captura:`, list.map(s => `${s.id} | ${s.name}`));
+      const wins = list.filter(s => String(s.id).startsWith("window:"));
+      const src = wins.find(s => s.name === document.title) ?? wins.find(s => /discord/i.test(s.name)) ?? list.find(s => /discord/i.test(s.name));
+      if (!src) return false;
+      try {
+        await fns.start(guild.id ?? null, channel.id, {
+          pid: null, sourceId: src.id, sourceName: src.name, audioSourceId: src.name,
+          sound: StreamSettingsStore?.getState?.()?.soundshareEnabled ?? true, previewDisabled: false,
+        });
+        return true;
+      } catch (e) { console.error(`[${TITLE}] STREAM_START falhou:`, e); return false; }
+    };
+
+    const start = async (channel, guild, media) => {
+      if (busy) return;
+      if (active) stop();
+      busy = true; active = true;
+      curChannel = channel; curGuild = guild; curMedia = media;
+      startedAt = Date.now(); wasLive = false; joinedByUs = false; streamKey = null;
+      setPhase("joining");
+      if (!connected(guild.id, channel.id)) {
+        if (!VoiceActions) { busy = false; msg = "Não achei a função de entrar na call."; stop(); return; }
+        try { VoiceActions.selectVoiceChannel(channel.id); joinedByUs = true; } catch (e) { console.error(e); }
+        const okJoin = await waitFor(() => !active || connected(guild.id, channel.id), 10000);
+        if (!active) { busy = false; return; }
+        if (!okJoin) console.warn(`[${TITLE}] Entrada na call não confirmada; tentando transmitir mesmo assim.`);
+      }
+      setPhase("loading");
+      showStage(media, () => stop(), () => setPhase("error", "Não consegui reproduzir esse link. Use .mp4/.webm direto ou YouTube/Twitch/Vimeo/Streamable."));
+      await sleep(1800);
+      if (!active) { busy = false; return; }
+      setPhase("starting");
+      const okLive = await goLive(channel, guild);
+      if (!active) { busy = false; return; }
+      if (!okLive) setPhase("manual");
+      busy = false;
+    };
+    function stop() {
+      const ch = curChannel, was = active;
+      active = false; busy = false;
+      hideStage();
+      if (was) {
+        try {
+          const key = streamKey ?? (() => { const s = storeStream(); return s ? (s.streamType === "guild" ? `guild:${s.guildId}:${s.channelId}:${s.ownerId}` : `call:${s.channelId}:${s.ownerId}`) : null; })();
+          if (key && fns.stop) fns.stop(key);
+        } catch (e) { console.warn(e); }
+        if (joinedByUs && ch && VoiceActions && SelectedChannelStore?.getVoiceChannelId?.() === ch.id) { try { VoiceActions.selectVoiceChannel(null); } catch {} }
+      }
+      joinedByUs = false; wasLive = false; streamKey = null;
+      curChannel = null; curGuild = null; curMedia = null; startedAt = null;
+      phase = "idle"; note = ""; srvSig = ""; chSig = "";
+      render(); refreshHub();
+    }
+    onDispose(stop);
+
+    // ----- UI do módulo -----
+    const extra = el("div", "display:flex;flex-direction:column;gap:5px;margin-top:2px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px;");
+    const { wrap: urlWrap, input: urlInput } = mkInput("link", "Cole o link do vídeo e ligue o switch...");
+    const srvLbl = el("div", "", "Servidores"); srvLbl.className = "h288-lbl";
+    const srvList = el("div", "max-height:78px;"); srvList.className = "h288-list";
+    const chLbl = el("div", "", "Canais vazios"); chLbl.className = "h288-lbl";
+    const { wrap: chSearchWrap, input: chSearch } = mkInput("search", "Buscar canal (ex: 223)...");
+    chSearch.onkeydown = (e) => e.stopPropagation();
+    const chList = el("div", "max-height:78px;"); chList.className = "h288-list";
+    extra.append(urlWrap, srvLbl, srvList, chLbl, chSearchWrap, chList);
+
+    const makeIcon = (url, fallback) => {
+      const i = el("span"); i.className = "h288-ico";
+      if (url) i.style.backgroundImage = `url("${url}")`; else i.textContent = (fallback || "?").slice(0, 2).toUpperCase();
+      return i;
+    };
+    const emptyMsg = (t) => el("div", "font-size:11px;color:#8e9297;padding:4px;text-align:center;", t);
+    let srvSig = "", chSig = "";
+
+    const renderServers = () => {
+      const servers = getServers();
+      const sig = servers.map(s => s.id + s.name + s.icon).join("|") + "#" + (selGuild?.id ?? "");
+      if (sig === srvSig) return;
+      srvSig = sig; srvList.textContent = "";
+      if (!servers.length) return void srvList.append(emptyMsg("Nenhum servidor encontrado"));
+      for (const s of servers) {
+        const b = el("button"); b.className = "h288-item" + (selGuild?.id === s.id ? " on" : ""); b.title = s.name;
+        const t = el("span", "", s.name); t.className = "t";
+        b.append(makeIcon(s.icon, s.name[0]), t);
+        b.onclick = () => { selGuild = s; selChannel = null; srvSig = ""; chSig = ""; renderServers(); renderChannels(); render(); refreshHub(); };
+        srvList.appendChild(b);
+      }
+    };
+    const renderChannels = () => {
+      const q = chSearch.value.trim();
+      if (q) {   // busca: qualquer canal de voz (ocupado ou vazio)
+        chLbl.textContent = "Resultados da busca";
+        const res = searchChannels(q, selGuild?.id);
+        const sig = "q:" + q + ":" + (selGuild?.id ?? "") + ":" + res.map(r => r.ch.id + r.ch.name + r.count).join("|") + "#" + (selChannel?.id ?? "");
+        if (sig === chSig) return;
+        chSig = sig; chList.textContent = "";
+        if (!res.length) return void chList.append(emptyMsg("Nenhum canal encontrado"));
+        for (const { ch, guild, count } of res) {
+          const b = el("button"); b.className = "h288-item" + (selChannel?.id === ch.id ? " on" : "");
+          b.title = `${ch.name} • ${guild.name}${count ? ` • ${count} na call` : ""}`;
+          const t = el("span", "", `🔊 ${ch.name}`); t.className = "t"; b.append(t);
+          if (count) { const c = el("span", "", `(${count})`); c.className = "c"; b.append(c); }
+          if (!selGuild) { const s = el("span", "", guild.name); s.className = "s"; b.append(s); }
+          b.onclick = () => {
+            selChannel = ch;
+            if (selGuild?.id !== guild.id) { selGuild = guild; srvSig = ""; renderServers(); }
+            chSig = ""; renderChannels(); render(); refreshHub();
+          };
+          chList.appendChild(b);
+        }
+        return;
+      }
+      chLbl.textContent = "Canais vazios";
+      if (!selGuild) { if (chSig !== "none") { chSig = "none"; chList.textContent = ""; chList.append(emptyMsg("Selecione um servidor ou busque um canal")); } return; }
+      const channels = getEmptyChannels(selGuild.id);
+      if (selChannel && !channels.some(c => c.id === selChannel.id) && !chSearch.value) selChannel = null;
+      const sig = "e:" + selGuild.id + ":" + channels.map(c => c.id + c.name).join("|") + "#" + (selChannel?.id ?? "");
+      if (sig === chSig) return;
+      chSig = sig; chList.textContent = "";
+      if (!channels.length) return void chList.append(emptyMsg("Nenhum canal vazio (use a busca)"));
+      for (const ch of channels) {
+        const b = el("button"); b.className = "h288-item" + (selChannel?.id === ch.id ? " on" : "");
+        const t = el("span", "", `🔊 ${ch.name}`); t.className = "t"; b.append(t);
+        b.onclick = () => { selChannel = ch; chSig = ""; renderChannels(); render(); refreshHub(); };
+        chList.appendChild(b);
+      }
+    };
+    chSearch.oninput = () => { chSig = ""; renderChannels(); render(); };
+    urlInput.oninput = () => { msg = ""; render(); };
+
+    const render = () => {
+      if (active) {
+        const live = isLive();
+        if (live) { wasLive = true; if (phase === "starting" || phase === "manual") { phase = "live"; phaseAt = Date.now(); } }
+        if (wasLive && !live && phase !== "joining" && phase !== "loading") { stop(); return; }
+        let st, icon = "screen", pct = 100, color = "#23a55a", tag = "AO VIVO", tagColor = "#3ddc84";
+        const wait = (s, p) => { st = s; icon = null; pct = p; color = "#5865F2"; tag = "..."; tagColor = "#c4c9ce"; };
+        if (phase === "joining") wait("Entrando na call...", 20);
+        else if (phase === "loading") wait("Carregando vídeo...", 45);
+        else if (phase === "error") { st = note; icon = "warn"; color = "#ed4245"; tag = "ERRO"; tagColor = "#ff6b6e"; }
+        else if (phase === "manual") { st = "Clique em Compartilhar tela e escolha a janela do Discord"; icon = "warn"; pct = 70; color = "#f0b232"; tag = "MANUAL"; tagColor = "#f0b232"; }
+        else if (!live) { wait("Iniciando transmissão...", 75); if (Date.now() - phaseAt > 12000) { phase = "manual"; phaseAt = Date.now(); } }
+        else st = `${curGuild.name} • ${curChannel.name}`;
+        setView(view, {
+          name: live ? `Transmitindo ${curMedia.label}` : "Transmitindo Vídeo", status: st, icon, pct, color,
+          l: `Ao vivo há ${hms(Date.now() - startedAt)}`, r: curMedia.label,
+          fl: `🔊 ${curChannel.name}`, fr: tag, frColor: tagColor,
+        });
+        extra.style.display = "none";
+      } else {
+        setView(view, {
+          name: "Fake Stream",
+          status: msg || (!urlInput.value.trim() ? "Cole o link de um vídeo" : !selChannel ? "Selecione um canal ou busque pelo nome" : `${selGuild?.name ?? ""} • ${selChannel.name}`),
+          icon: msg ? "warn" : null, pct: 0,
+        });
+        extra.style.display = "flex";
+      }
+    };
+
+    const syncExtra = () => { if (!active) { renderServers(); renderChannels(); } };
+
+    return {
+      id: "stream", label: "Stream", title: "Fake Stream", icon: "screen", view, extra,
+      isOn: () => active,
+      toggle: async (v) => {
+        if (!v) { stop(); return; }
+        if (active) return;
+        const media = parseMedia(urlInput.value);
+        if (!urlInput.value.trim() || !media) msg = "Cole um link de vídeo válido (https://...)";
+        else if (!selGuild || !selChannel) msg = "Escolha um servidor e um canal (ou busque pelo nome)";
+        else { msg = ""; start(selChannel, selGuild, media); return; }
+        render(); refreshHub();
+        const t = urlInput.closest("div"); t?.classList.add("h288-shake"); setTimeout(() => t?.classList.remove("h288-shake"), 400);
+      },
+      render, syncExtra,
+      dot: () => ({ live: "on", joining: "busy", loading: "busy", starting: "busy", manual: "warn", error: "err" }[phase] ?? "off"),
+      bg: () => {
+        const g = active ? curGuild : selGuild;
+        if (!g) return { key: null, sources: [], fallback: null };
+        const m = g.bg;
+        return { key: g.id, sources: m ? [{ url: m.url, type: m.anim ? "anim" : "img" }] : [], fallback: gradFor(g.name) };
+      },
+      pct: () => (phase === "live" ? 100 : 0),
+      showPct: () => false,
+      live: () => active && phase === "live",
+      focusUrl: () => urlInput.focus(),
+      submit: () => urlInput.onkeydown = (e) => { if (e.key === "Enter") hubToggle("stream", true); e.stopPropagation(); },
+    };
+  })();
+
+  // ======================================================================
+  //  HUB: painel único, abas, switches, atalhos, arrastar, bolinha
+  // ======================================================================
+  const MODS = [quest, presence, stream];
+  let pos = { r: 14, b: 14 };
+  try { const p = JSON.parse(store.get("pos") ?? "null"); if (p && Number.isFinite(p.r) && Number.isFinite(p.b)) pos = p; } catch {}
+  const H = { tab: Math.max(0, Math.min(2, Number(store.get("tab") ?? 0) || 0)), minimized: false, help: false };
+
+  const root = el("div",
+    `position:fixed;right:${pos.r}px;bottom:${pos.b}px;width:300px;box-sizing:border-box;z-index:2147483647;
+     background-color:#1e1f22;color:#f2f3f5;border:1px solid #3f4147;border-radius:10px;
+     font-family:${FONT};box-shadow:0 6px 18px rgba(0,0,0,.5);overflow:hidden;opacity:0;transform:translateY(10px);
+     transform-origin:bottom right;transition:opacity .3s ease,transform .3s ease;`);
+  root.id = "h288-ui";
+  const content = el("div", "position:relative;z-index:1;display:flex;flex-direction:column;gap:6px;padding:9px 11px;");
+  root.append(bgWrap, content);
+
+  // cabeçalho (o nome da marca fica dentro de um Shadow DOM fechado: não dá para editar pelo inspetor/console)
+  const header = el("div", "display:flex;align-items:center;justify-content:space-between;height:18px;cursor:grab;touch-action:none;");
+  const titleEl = el("span", `display:flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#c4c9ce;font-weight:700;white-space:nowrap;${SHADOW}`);
+  const brandRoot = titleEl.attachShadow({ mode: "closed" });
+  const paintBrand = () => {
+    brandRoot.innerHTML = `<span style="display:flex;align-items:center;gap:5px"><span>${BRAND.a}</span>${ic("dot", 5)}<span>${BRAND.b}</span></span>`;
+  };
+  paintBrand();
+  const titleCss = titleEl.style.cssText;
+  const hbtns = el("div", "display:flex;gap:5px;flex:none;");
+  const helpBtn = mkIconBtn("help", "Atalhos e ajuda");
+  const minBtn = mkIconBtn("min", "Minimizar (Alt+H)");
+  const closeBtn = mkIconBtn("close", "Parar tudo e fechar");
+  hbtns.append(helpBtn, minBtn, closeBtn);
+  header.append(titleEl, hbtns);
+
+  // abas com indicador deslizante
+  const tabsWrap = el("div", "position:relative;display:flex;background:rgba(18,19,22,.55);border-radius:8px;padding:2px;");
+  const indicator = el("div", "position:absolute;top:2px;bottom:2px;left:2px;width:calc((100% - 4px)/3);border-radius:6px;background:rgba(88,101,242,.55);transition:transform .25s cubic-bezier(.3,.9,.4,1);");
+  tabsWrap.setAttribute("role", "tablist");
+  tabsWrap.append(indicator);
+  const tabBtns = MODS.map((m, i) => {
+    const b = el("button"); b.className = "h288-tab"; b.setAttribute("role", "tab");
+    b.title = `${m.title} (Alt+${i + 1})`;
+    b.innerHTML = `${ic(m.icon, 12)}<span>${m.label}</span><span class="h288-dot"></span>`;
+    b.onclick = () => selectTab(i);
+    b.onkeydown = (e) => {
+      if (e.key === "ArrowRight") { e.preventDefault(); selectTab((H.tab + 1) % 3); tabBtns[H.tab].focus(); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); selectTab((H.tab + 2) % 3); tabBtns[H.tab].focus(); }
+    };
+    tabsWrap.append(b);
+    return b;
+  });
+
+  // painéis (cada módulo tem o seu, com switch)
+  const panes = el("div", "display:flex;flex-direction:column;");
+  const switches = [];
+  const paneEls = MODS.map((m, i) => {
+    const pane = el("div", "display:none;flex-direction:column;gap:6px;");
+    pane.setAttribute("role", "tabpanel");
+    const row = el("div", "display:flex;align-items:center;justify-content:space-between;gap:8px;");
+    const lbl = el("span", `font-size:11px;font-weight:700;color:#d5d9dd;${SHADOW}`, m.title);
+    const stateTxt = el("span", `font-size:10px;color:#aeb4ba;margin-left:6px;font-weight:600;`);
+    const left = el("div", "display:flex;align-items:baseline;min-width:0;"); left.append(lbl, stateTxt);
+    const sw = mkSwitch(async (v) => { await m.toggle(v); renderHub(); });
+    sw.el.title = `Ligar/desligar ${m.title} (Alt+Shift+${i + 1})`;
+    switches.push({ sw, stateTxt });
+    row.append(left, sw.el);
+    pane.append(row, m.view.root);
+    if (m.extra) pane.append(m.extra);
+    panes.append(pane);
+    return pane;
+  });
+
+  // ajuda
+  const helpBox = el("div", `display:none;flex-direction:column;gap:5px;font-size:11px;color:#d5d9dd;${SHADOW}`);
+  const HELP = [
+    ["Alt+1 / 2 / 3", "Trocar de aba"], ["Alt+Shift+1 / 2 / 3", "Ligar ou desligar o módulo"], ["Alt+H", "Minimizar ou expandir"],
+    ["← →", "Navegar entre abas (com foco)"], ["Arrastar o título", "Mover o painel (duplo clique volta ao canto)"],
+    ["Enter no link", "Liga a Fake Stream"],
+  ];
+  for (const [k, d] of HELP) {
+    const r = el("div", "display:flex;justify-content:space-between;gap:10px;");
+    r.append(el("span", "font-weight:700;white-space:nowrap;", k), el("span", "color:#aeb4ba;text-align:right;", d));
+    helpBox.append(r);
+  }
+  helpBox.append(el("div", "margin-top:4px;color:#8e9297;font-size:10px;", `${BRAND.full} · ${CFG.BUILD}`));
+
+  content.append(header, tabsWrap, panes, helpBox);
+
+  // bolinha
+  const BS = 44, RR = 19, CIRC = 2 * Math.PI * RR;
+  const bubble = el("div",
+    `position:fixed;right:${pos.r}px;bottom:${pos.b}px;width:${BS}px;height:${BS}px;box-sizing:border-box;z-index:2147483647;
+     border-radius:50%;background-color:#1e1f22;background-size:cover;background-position:center;
+     border:1px solid #3f4147;box-shadow:0 6px 18px rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;
+     cursor:pointer;color:#f2f3f5;font-family:${FONT};transform-origin:bottom right;touch-action:none;
+     transition:opacity .3s ease,transform .3s ease;`);
+  bubble.id = "h288-bubble";
+  bubble.innerHTML =
+    `<svg viewBox="0 0 44 44" style="position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)">
+       <circle cx="22" cy="22" r="${RR}" fill="rgba(18,19,22,.55)" stroke="rgba(255,255,255,.18)" stroke-width="3"/>
+       <circle class="fg" cx="22" cy="22" r="${RR}" fill="none" stroke="#5865F2" stroke-width="3" stroke-linecap="round"
+         stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC}" style="transition:stroke-dashoffset .4s ease,stroke .3s"/>
+     </svg>`;
+  const ringFg = bubble.querySelector(".fg");
+  const bubCenter = el("div", `position:relative;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;${SHADOW}`);
+  bubble.appendChild(bubCenter);
+  document.body.append(root, bubble);
+  requestAnimationFrame(() => { root.style.opacity = "1"; root.style.transform = "translateY(0)"; });
+  onDispose(() => { root.remove(); bubble.remove(); });
+
+  // ---------- Vigia da marca: restaura o nome/visibilidade e encerra se insistirem ----------
+  let tamper = 0;
+  const guardBrand = () => {
+    if (disposed) return;
+    let hit = false;
+    try {
+      if (!root.isConnected) { document.body.append(root); hit = true; }
+      if (!bubble.isConnected) { document.body.append(bubble); hit = true; }
+      if (root.id !== "h288-ui") { root.id = "h288-ui"; hit = true; }
+      if (bubble.id !== "h288-bubble") { bubble.id = "h288-bubble"; hit = true; }
+      if (titleEl.parentNode !== header) { header.prepend(titleEl); hit = true; }
+      if (titleEl.style.cssText !== titleCss) { titleEl.style.cssText = titleCss; hit = true; }
+      if (titleEl.getAttribute("title") != null || titleEl.getAttribute("class") != null || titleEl.hidden) {
+        titleEl.removeAttribute("title"); titleEl.removeAttribute("class"); titleEl.hidden = false; hit = true;
+      }
+      if (brandRoot.textContent.replace(/\s/g, "") !== BRAND.a + BRAND.b) { paintBrand(); hit = true; }
+      if (root.style.visibility) { root.style.visibility = ""; hit = true; }
+      if (!H.minimized) {
+        const cs = getComputedStyle(titleEl), r = titleEl.getBoundingClientRect();
+        if (cs.display === "none" || cs.visibility === "hidden" || parseFloat(cs.opacity) < 0.9 || parseFloat(cs.fontSize) < 8 || r.width < 12 || r.height < 6) {
+          for (const [p, v] of [["display", "flex"], ["visibility", "visible"], ["opacity", "1"], ["font-size", "10px"]]) titleEl.style.setProperty(p, v, "important");
+          hit = true;
+        }
+      }
+    } catch {}
+    if (hit && ++tamper >= 5) {
+      console.error("[288 • Hub] Alteração da marca detectada repetidamente: encerrando.");
+      dispose();
+    }
+  };
+  const brandObs = new MutationObserver(() => { guardBrand(); brandObs.takeRecords(); });
+  brandObs.observe(header, { childList: true, subtree: true, attributes: true, characterData: true });
+  brandObs.observe(root, { attributes: true, attributeFilter: ["id", "hidden", "class"] });
+  onDispose(() => brandObs.disconnect());
+
+  // posição / arrastar
+  const setPos = (r, b) => {
+    const node = H.minimized ? bubble : root;
+    const w = node.offsetWidth || 300, h = node.offsetHeight || 100;
+    pos = { r: Math.max(0, Math.min(innerWidth - w, r)), b: Math.max(0, Math.min(innerHeight - h, b)) };
+    for (const n of [root, bubble]) { n.style.right = pos.r + "px"; n.style.bottom = pos.b + "px"; }
+  };
+  const draggable = (handle, onTap) => {
+    handle.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || e.target.closest("button,input,select")) return;
+      const rect = (H.minimized ? bubble : root).getBoundingClientRect();
+      const sx = e.clientX, sy = e.clientY, r0 = innerWidth - rect.right, b0 = innerHeight - rect.bottom;
+      let moved = false;
+      const mv = (ev) => {
+        const dx = ev.clientX - sx, dy = ev.clientY - sy;
+        if (!moved && Math.hypot(dx, dy) < 4) return;
+        moved = true; handle.style.cursor = "grabbing"; setPos(r0 - dx, b0 - dy);
+      };
+      const up = () => {
+        removeEventListener("pointermove", mv); removeEventListener("pointerup", up);
+        handle.style.cursor = handle === header ? "grab" : "pointer";
+        if (moved) store.set("pos", JSON.stringify(pos)); else onTap?.();
+      };
+      addEventListener("pointermove", mv); addEventListener("pointerup", up);
+    });
+  };
+  header.addEventListener("dblclick", (e) => { if (e.target.closest("button")) return; setPos(14, 14); store.set("pos", JSON.stringify(pos)); });
+  const onResize = () => setPos(pos.r, pos.b);
+  addEventListener("resize", onResize);
+  onDispose(() => removeEventListener("resize", onResize));
+
+  // navegação
+  const selectTab = (i, quiet) => {
+    if (i === H.tab && paneEls[i].style.display !== "none") return;
+    const dir = i > H.tab ? 1 : -1;
+    H.tab = i; H.help = false; store.set("tab", String(i));
+    renderHub();
+    if (!quiet && !REDUCED) paneEls[i].animate([{ opacity: 0, transform: `translateX(${dir * 14}px)` }, { opacity: 1, transform: "none" }], { duration: 200, easing: "ease-out" });
+  };
+  const setMin = (v) => {
+    H.minimized = v;
+    renderHub();
+    const n = v ? bubble : root;
+    n.style.opacity = "0"; n.style.transform = "scale(.8)";
+    requestAnimationFrame(() => requestAnimationFrame(() => { n.style.opacity = "1"; n.style.transform = "scale(1)"; }));
+    setPos(pos.r, pos.b);
+  };
+  const hubToggle = async (id, v) => {
+    const i = MODS.findIndex(m => m.id === id);
+    await MODS[i].toggle(v ?? !MODS[i].isOn());
+    renderHub();
+  };
+  stream.submit();
+  draggable(header);
+  draggable(bubble, () => setMin(false));
+  minBtn.onclick = () => setMin(true);
+  helpBtn.onclick = () => { H.help = !H.help; renderHub(); };
+  closeBtn.onclick = () => {
+    for (const t of [root, bubble]) { t.style.opacity = "0"; t.style.transform = "translateY(10px)"; }
+    setTimeout(dispose, 450);
+  };
+
+  const onKey = (e) => {
+    if (!e.altKey || e.ctrlKey || e.metaKey) return;
+    const m = /^Digit([123])$/.exec(e.code);
+    if (m) {
+      e.preventDefault(); e.stopPropagation();
+      const i = Number(m[1]) - 1;
+      if (e.shiftKey) { H.minimized && setMin(false); selectTab(i); hubToggle(MODS[i].id); }
+      else { if (H.minimized) setMin(false); selectTab(i); }
+    } else if (e.code === "KeyH") { e.preventDefault(); e.stopPropagation(); setMin(!H.minimized); }
+  };
+  addEventListener("keydown", onKey, true);
+  onDispose(() => removeEventListener("keydown", onKey, true));
+
+  // render do hub
+  const STATE_TXT = { on: "ativo", busy: "em andamento", warn: "atenção", err: "erro", off: "desligado" };
+  const renderHub = () => {
+    const cur = MODS[H.tab];
+    MODS.forEach((m, i) => {
+      const d = m.dot();
+      const dot = tabBtns[i].querySelector(".h288-dot");
+      dot.className = "h288-dot " + (d === "off" ? "" : d);
+      tabBtns[i].classList.toggle("on", i === H.tab);
+      tabBtns[i].setAttribute("aria-selected", String(i === H.tab));
+      tabBtns[i].tabIndex = i === H.tab ? 0 : -1;
+      switches[i].sw.set(m.isOn());
+      switches[i].stateTxt.textContent = STATE_TXT[d] ?? "";
+      paneEls[i].style.display = (!H.help && i === H.tab) ? "flex" : "none";
+    });
+    indicator.style.transform = `translateX(${H.tab * 100}%)`;
+    helpBox.style.display = H.help ? "flex" : "none";
+    helpBtn.style.background = H.help ? "#5865F2" : "rgba(43,45,49,.85)";
+    cur.render();
+    cur.syncExtra?.();
+
+    // fundo animado do módulo da aba ativa
+    const b = cur.bg();
+    setBg(`${cur.id}:${b.key}`, b.sources, b.fallback, (still) => {
+      bubble.style.backgroundImage = still ? `${OVERLAY},url("${still}")` : (b.fallback ?? "none");
+    });
+
+    // bolinha
+    const showPct = quest.showPct();
+    const pct = quest.pct();
+    const live = stream.live();
+    ringFg.style.strokeDashoffset = String(CIRC * (1 - (live ? 100 : showPct ? pct : 0) / 100));
+    ringFg.style.stroke = live ? "#23a55a" : "#5865F2";
+    if (live) rich(bubCenter, `<span style="display:flex;color:#3ddc84">${ic("screen", 16)}</span>`);
+    else if (showPct) rich(bubCenter, String(Math.floor(pct)));
+    else rich(bubCenter, `<span style="display:flex;color:#f2f3f5">${ic("pad", 18)}</span>`);
+    const onCount = MODS.filter(m => m.isOn()).length;
+    bubble.title = `${BRAND.a} ${BRAND.b}: ${onCount} módulo(s) ativo(s)`;
+
+    // some durante a transmissão (volta ao passar o mouse)
+    root.classList.toggle("h288-hide", live);
+    bubble.classList.toggle("h288-hide", live);
+    root.style.display = H.minimized ? "none" : "block";
+    bubble.style.display = H.minimized ? "flex" : "none";
+  };
+  refreshHub = renderHub;
+
+  let tickN = 0;
+  const uiTimer = setInterval(() => { if (++tickN % 3 === 0) stream.syncExtra(); guardBrand(); renderHub(); }, 1000);
+  onDispose(() => clearInterval(uiTimer));
+
+  selectTab(H.tab, true);
+  renderHub();
+  quest.auto();   // Auto Quest liga sozinho ao executar
+})();

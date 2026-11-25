@@ -4,9 +4,9 @@
  * Atalhos: Alt+1/2/3 abas · Alt+Shift+1/2/3 liga/desliga · Alt+H minimiza
  *
  * Uso (console do Discord, F12):
- *   fetch("https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/Panel").then(r => r.text()).then(t => (0, eval)(t))
+ *   fetch("https://raw.githubusercontent.com/Bondzinn/discord-hub/refs/heads/main/Panel").then(r => r.text()).then(t => (0, eval)(t))
  */
-(async () => {
+(async function H288() {
   "use strict";
 
   const CFG = Object.freeze({
@@ -14,6 +14,7 @@
     BUILD: "gh-1.0.0",                     // versão publicada no GitHub
     ALLOW: /*@allow*/[]/*@end*/,           // IDs de usuário autorizados (vazio = qualquer um)
     KEY: "__h288",
+    OWNER: "Bondzinn",                      // autoria (faz parte do selo)
   });
   const TITLE = CFG.TITLE;
 
@@ -23,11 +24,29 @@
   const BRAND = Object.freeze({ full: "288 • Hub", a: "288", b: "Hub" });
   const BRAND_SUM = Object.freeze({ full: "751c04d4", a: "3bfb9bfd", b: "4717fc8c" });
   if (fnv(CFG.TITLE) !== BRAND_SUM.full || fnv(BRAND.full) !== BRAND_SUM.full || fnv(BRAND.a) !== BRAND_SUM.a || fnv(BRAND.b) !== BRAND_SUM.b) {
-    console.error("[288 • Hub] Marca alterada: execução bloqueada. Use o link oficial do GitHub.");
+    console.warn("[288] falha ao iniciar");
     return;
   }
 
   if (!/(^|\.)discord\.com$/.test(location.hostname)) return;
+
+  // ---------- Selo de autoria ----------
+  // As constantes internas ficam cifradas; a chave é o hash do PRÓPRIO código desta função.
+  // Qualquer edição (inclusive trocar o nome) muda a chave e o script não inicia.
+  const BLOB = /*@blob*/"7xekvQQpCmrymSk01Sbst0k1fUg+X0URfUxYJKShBq/JbSygWdXdhzj+N1iCeGyFE1xeIMMyVsA+XL1OnsfyNoyzpdsavu649VRJ+uURlyWV6LFGVe5YWeCEQV7IwsCUDz12cUx+oiPfIQZyp8iuuA8g6zRNQ+zClbUh86XiZUk+sa5IG1Ax0W2YukPb9DPjJGRUGu3DKqlzuJmr9JC4tThAjrb9QOWVnmMnBcyLphDbVkmRo4uqGXBfDYxtIsbZ4gfS49kc84X1h8jvLqs3zUtURqv6cOI+4sWojx/ODC73ZRlglugxjpFRs/wIWA2Dl9vEUCKixgbRtHDEFqHjjG/RuGdMqLCtUd98dzSmm1DMq/P3fwsHVSKPF5HmY+puzr8ZkcyCb4FCSc5ZgW2g8LiPKI0XWHFhLP33XJ3+JKaPP0FFYKvcfEWCx/nhN9mHzPwH4CuGLiyqbWHK9gTgiehO6SWcjSdJdazBB7JrSMvjhROUZSabEaLNo4luudoAdglMXFGlg6soAotPK6B1/F5hK7QfcRybf+BQbNxrSJevDuR9Na6DIdd73WMMylK7vXsLaW1L0tcCUZRF2HDCp8doXzmAAEzYINKkWjUf+yxOfuE30baT7I1gdUXinHGlVS/Rd4SciojV/n+jTojeJ6YC4KMmXj3ADqT2O8EB/FNHseQ+ZSSg31mE4fqKU6uzqlXdUguPQS6tlNWFWYxcVr0Lmc6WmJgAeIsYLLk2AesmJiLadaYUStM0rku1emCLK8WDC0Z0ZGKlnFWGNrF8lXr/Qhaq0c5usMVYsEzJ5pglb2aneHgOTyqQVyqPCrc72/F31WxOB1L+Fh0blep0NXSUKNbinc5WO7E91p3fp9aob9INEWsS5/i/UGAZPvp638hlx0Zs65hVDN3wbGT/pmrHtA9srlX455lf2OFov+Kb2E7wpmnYBV95Dz1QdxXB+7D+WGEJRYusXamKXY6xPL2ITANd5smEVOxS8f5TmUvb81yzBz57wLV7wMOa8IV1IuUUWKnCVKwJzKqO2EfAzOlV8A+cTpEyKUR4o8BTy/VNF9dP3DifyqektlBVObvjrnu96U1IknUkd0g/rc0kkqukBMlAuHcetwn2RiwcF6n7tctukdCuEnyipOWTwEWwF4p5+6jFLYm4ZrQkGL2RGdgWRAvbyHn7Zc820Y4/ojF9v//L9QRCWAgX0sUKUb397x2TltAOCKGVwwve5+wm2J+mS95ELQNuaWWBMHtD60JQLXKeNbps3WiXFMtf189f3Q870JlwRl8C7pimeJ6o27z8iOdc0DAysylWZ9zQcwb0onPzeZ2FFLSGVIsTDXQficJiQkaSuLfbpqTige+EKzmFneTsKsrVD185KYAvmz4ehzK5tkNRthCPfU1FD2RoZ34lW+8VqmIkr5ygzuBiDdKn1OcIiAydTfAY"/*@end*/;
+  const X = await (async () => {
+    try {
+      const nat = Function.prototype.toString;
+      if (!/\[native code\]/.test(nat.call(nat))) return null;
+      const own = nat.call(H288).replace(/\r\n/g, "\n").replace(/\/\*@blob\*\/"[^"]*"\/\*@end\*\//, "/*@blob*/" + '""' + "/*@end*/");
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(own));
+      const key = await crypto.subtle.importKey("raw", digest, "AES-GCM", false, ["decrypt"]);
+      const raw = Uint8Array.from(atob(BLOB), (c) => c.charCodeAt(0));
+      const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: raw.slice(0, 12) }, key, raw.slice(12));
+      return JSON.parse(new TextDecoder().decode(plain));
+    } catch { return null; }
+  })();
+  if (!X) { console.warn("[288] falha ao iniciar"); return; }
 
   // ---------- Ciclo de vida (uma instância por vez, sem globais públicas) ----------
   const disposers = [];
@@ -80,26 +99,26 @@
     return res;
   };
 
-  const QuestsStore        = find(v => typeof v.getQuest === "function" && v.quests instanceof Map);
-  const RunningGameStore   = find(v => typeof v.getRunningGames === "function" && typeof v.getGameForPID === "function");
-  const StreamingStore     = find(v => typeof v.getStreamerActiveStreamMetadata === "function");
-  const FluxDispatcher     = find(v => typeof v.flushWaitQueue === "function" && typeof v.dispatch === "function" && typeof v.subscribe === "function")
-                          ?? find(v => typeof v.flushWaitQueue === "function" && typeof v.dispatch === "function");
-  const ChannelStore       = find(v => typeof v.getSortedPrivateChannels === "function");
-  const PresenceStore      = find(v => typeof v.getActivities === "function" && typeof v.getStatus === "function");
-  const UserStore          = find(v => typeof v.getCurrentUser === "function" && typeof v.getUser === "function");
-  const GuildStore         = find(v => typeof v.getGuild === "function" && typeof v.getGuilds === "function" && typeof v.getGuildCount === "function")
-                          ?? find(v => typeof v.getGuild === "function" && typeof v.getGuilds === "function");
-  const GuildChannelStore  = find(v => typeof v.getAllGuilds === "function" && typeof v.getChannels === "function")
-                          ?? find(v => typeof v.getAllGuilds === "function" && typeof v.getVocalChannelIds === "function")
-                          ?? find(v => typeof v.getAllGuilds === "function");
-  const VoiceStateStore    = find(v => typeof v.getVoiceStateForChannel === "function" && typeof v.getVoiceStates === "function");
-  const SelectedChannelStore = find(v => typeof v.getVoiceChannelId === "function" && typeof v.getChannelId === "function");
-  const VoiceActions       = find(v => typeof v.selectVoiceChannel === "function");
-  const StreamStore        = find(v => typeof v.getCurrentUserActiveStream === "function");
-  const MediaEngineStore   = find(v => typeof v.getMediaEngine === "function" && typeof v.getVideoDevices === "function");
-  const StreamSettingsStore = find(v => typeof v.getState === "function" && "soundshareEnabled" in (v.getState() ?? {}));
-  const fns = scanFns({ start: 'type:"STREAM_START"', stop: 'type:"STREAM_STOP"', sources: "desktop sources" });
+  const QuestsStore        = find(v => typeof v[X.gQuest] === "function" && v[X.quests] instanceof Map);
+  const RunningGameStore   = find(v => typeof v[X.gRun] === "function" && typeof v[X.gPid] === "function");
+  const StreamingStore     = find(v => typeof v[X.gStrMeta] === "function");
+  const FluxDispatcher     = find(v => typeof v[X.flush] === "function" && typeof v[X.dispatch] === "function" && typeof v[X.subscribe] === "function")
+                          ?? find(v => typeof v[X.flush] === "function" && typeof v[X.dispatch] === "function");
+  const ChannelStore       = find(v => typeof v[X.gPriv] === "function");
+  const PresenceStore      = find(v => typeof v[X.gActs] === "function" && typeof v[X.gStatus] === "function");
+  const UserStore          = find(v => typeof v[X.gCur] === "function" && typeof v[X.gUser] === "function");
+  const GuildStore         = find(v => typeof v[X.gGuild] === "function" && typeof v[X.gGuilds] === "function" && typeof v[X.gGCount] === "function")
+                          ?? find(v => typeof v[X.gGuild] === "function" && typeof v[X.gGuilds] === "function");
+  const GuildChannelStore  = find(v => typeof v[X.gAllG] === "function" && typeof v[X.gChans] === "function")
+                          ?? find(v => typeof v[X.gAllG] === "function" && typeof v[X.gVocal] === "function")
+                          ?? find(v => typeof v[X.gAllG] === "function");
+  const VoiceStateStore    = find(v => typeof v[X.gVSCh] === "function" && typeof v[X.gVS] === "function");
+  const SelectedChannelStore = find(v => typeof v[X.gVCid] === "function" && typeof v[X.gCid] === "function");
+  const VoiceActions       = find(v => typeof v[X.selVC] === "function");
+  const StreamStore        = find(v => typeof v[X.gActStream] === "function");
+  const MediaEngineStore   = find(v => typeof v[X.gMedia] === "function" && typeof v[X.gVidDev] === "function");
+  const StreamSettingsStore = find(v => typeof v[X.gState] === "function" && X.soundshare in (v[X.gState]() ?? {}));
+  const fns = scanFns({ start: X.nStart, stop: X.nStop, sources: X.nSrc });
 
   const IS_APP = typeof DiscordNative !== "undefined";
   const IS_WIN = (IS_APP && DiscordNative.process?.platform === "win32") || /Win/i.test(navigator.platform);
@@ -130,7 +149,7 @@
     try { const r = await c.get({ url: "/users/@me" }); if (r?.body?.id) { api = c; break; } } catch {}
   }
   if (!api) {
-    const token = find(v => typeof v.getToken === "function")?.getToken?.();
+    const token = find(v => typeof v[X.gToken] === "function")?.[X.gToken]?.();
     if (token) {
       const call = (method) => async ({ url, body }) => {
         const r = await fetch("/api/v9" + url, {
@@ -539,14 +558,14 @@
         const maxAllowed = Math.floor((Date.now() - enrolledAt) / 1000) + 10;
         if (done + speed > maxAllowed && done + speed < needed) { await psleep(1000); continue; }
         const next = Math.min(needed, done + speed);
-        const res = await post(`/quests/${q.id}/video-progress`, { timestamp: Math.min(needed, next + Math.random()) });
+        const res = await post(`/quests/${q.id}${X.pVP}`, { timestamp: Math.min(needed, next + Math.random()) });
         if (res?.body?.completed_at != null) serverDone = true;
         done = next; setReal(done);
         if (serverDone) break;
         await psleep(1000);
       }
       if (!serverDone && !ctl.cancelled) {
-        const res = await post(`/quests/${q.id}/video-progress`, { timestamp: needed });
+        const res = await post(`/quests/${q.id}${X.pVP}`, { timestamp: needed });
         serverDone = res?.body?.completed_at != null;
       }
       return serverDone;
@@ -584,20 +603,20 @@
       const start = () => {
         if (on) return; on = true;
         RunningGameStore.getRunningGames = myGet; RunningGameStore.getGameForPID = myPid;
-        FluxDispatcher.dispatch({ type: "RUNNING_GAMES_CHANGE", removed: [], added: [fakeGame], games: myGet.call(RunningGameStore) });
+        FluxDispatcher.dispatch({ type: X.evRun, removed: [], added: [fakeGame], games: myGet.call(RunningGameStore) });
       };
       const stopGame = () => {
         if (!on) return; on = false;
         if (RunningGameStore.getRunningGames === myGet) RunningGameStore.getRunningGames = prevGet;
         if (RunningGameStore.getGameForPID === myPid) RunningGameStore.getGameForPID = prevPid;
-        FluxDispatcher.dispatch({ type: "RUNNING_GAMES_CHANGE", removed: [fakeGame], added: [], games: RunningGameStore.getRunningGames() });
+        FluxDispatcher.dispatch({ type: X.evRun, removed: [fakeGame], added: [], games: RunningGameStore.getRunningGames() });
       };
       setReal(readProgress(q, "PLAY_ON_DESKTOP"));
       S.lastGain = Date.now(); S.live = true;
       ctl.session = { start, stop: stopGame };
       start();
       const onBeat = (data) => setReal(isV1 ? data?.userStatus?.streamProgressSeconds : Math.floor(data?.userStatus?.progress?.PLAY_ON_DESKTOP?.value ?? 0));
-      FluxDispatcher.subscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", onBeat);
+      FluxDispatcher.subscribe(X.evHb, onBeat);
       try {
         await new Promise((resolve, reject) => {
           const poll = setInterval(() => {
@@ -611,7 +630,7 @@
           }, 3000);
           ctl.cancel = () => { clearInterval(poll); resolve(); };
         });
-      } finally { FluxDispatcher.unsubscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", onBeat); stopGame(); S.live = false; }
+      } finally { FluxDispatcher.unsubscribe(X.evHb, onBeat); stopGame(); S.live = false; }
       return false;
     }
 
@@ -629,7 +648,7 @@
       ctl.session = { start, stop: stopStream };
       start();
       const onBeat = (data) => setReal(isV1 ? data?.userStatus?.streamProgressSeconds : Math.floor(data?.userStatus?.progress?.STREAM_ON_DESKTOP?.value ?? 0));
-      FluxDispatcher.subscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", onBeat);
+      FluxDispatcher.subscribe(X.evHb, onBeat);
       try {
         await new Promise((resolve, reject) => {
           const poll = setInterval(() => {
@@ -643,7 +662,7 @@
           }, 3000);
           ctl.cancel = () => { clearInterval(poll); resolve(); };
         });
-      } finally { FluxDispatcher.unsubscribe("QUESTS_SEND_HEARTBEAT_SUCCESS", onBeat); stopStream(); S.live = false; }
+      } finally { FluxDispatcher.unsubscribe(X.evHb, onBeat); stopStream(); S.live = false; }
       return false;
     }
 
@@ -667,7 +686,7 @@
           checkStall();
           const streamKey = `call:${channels[ci]}:1`;
           let res;
-          try { res = await post(`/quests/${q.id}/heartbeat`, { stream_key: streamKey, terminal: false }); badRuns = 0; }
+          try { res = await post(`/quests/${q.id}${X.pHB}`, { stream_key: streamKey, terminal: false }); badRuns = 0; }
           catch (e) {
             S.status = `${e.message}, trocando de canal`; S.warn = true; render();
             if (++badRuns >= channels.length * 2) throw e;
@@ -685,7 +704,7 @@
           else if (++noGain >= 3) { ci = (ci + 1) % channels.length; noGain = 0; }
           if (res?.body?.completed_at != null) { serverDone = true; break; }
           if (progress >= needed) {
-            const fin = await post(`/quests/${q.id}/heartbeat`, { stream_key: streamKey, terminal: true });
+            const fin = await post(`/quests/${q.id}${X.pHB}`, { stream_key: streamKey, terminal: true });
             serverDone = fin?.body?.completed_at != null;
             break;
           }
@@ -865,7 +884,7 @@
       }
     };
     const dispatchGames = (removed, added) =>
-      FluxDispatcher?.dispatch({ type: "RUNNING_GAMES_CHANGE", removed, added, games: RunningGameStore.getRunningGames() });
+      FluxDispatcher?.dispatch({ type: X.evRun, removed, added, games: RunningGameStore.getRunningGames() });
     const inStore = (g) => { try { return (RunningGameStore.getRunningGames() ?? []).some(r => r.id === g.id && r.pid === g.pid); } catch { return false; } };
     const startGuard = () => {
       if (guard) return;
@@ -879,10 +898,10 @@
     const stopGuard = () => { if (guard) { clearInterval(guard); guard = null; } };
 
     const sendActivity = (entry) => FluxDispatcher?.dispatch({
-      type: "LOCAL_ACTIVITY_UPDATE", socketId: entry.socketId,
+      type: X.evAct, socketId: entry.socketId,
       activity: { application_id: entry.app.id, name: entry.app.name, type: 0, flags: 0, timestamps: { start: entry.start } },
     });
-    const clearActivity = (entry) => FluxDispatcher?.dispatch({ type: "LOCAL_ACTIVITY_UPDATE", socketId: entry.socketId, activity: null });
+    const clearActivity = (entry) => FluxDispatcher?.dispatch({ type: X.evAct, socketId: entry.socketId, activity: null });
 
     const activate = (app) => {
       const start = Date.now();
@@ -1162,9 +1181,9 @@
     let streamKey = null;
     const onCreate = (d) => { const k = d?.streamKey ?? (typeof d === "string" ? d : null); if (k && myId() && k.endsWith(myId())) streamKey = k; };
     const onDelete = (d) => { const k = d?.streamKey ?? (typeof d === "string" ? d : null); if (k && k === streamKey) streamKey = null; };
-    FluxDispatcher?.subscribe?.("STREAM_CREATE", onCreate);
-    FluxDispatcher?.subscribe?.("STREAM_DELETE", onDelete);
-    onDispose(() => { try { FluxDispatcher?.unsubscribe?.("STREAM_CREATE", onCreate); FluxDispatcher?.unsubscribe?.("STREAM_DELETE", onDelete); } catch {} });
+    FluxDispatcher?.subscribe?.(X.evSC, onCreate);
+    FluxDispatcher?.subscribe?.(X.evSD, onDelete);
+    onDispose(() => { try { FluxDispatcher?.unsubscribe?.(X.evSC, onCreate); FluxDispatcher?.unsubscribe?.(X.evSD, onDelete); } catch {} });
     const storeStream = () => { try { return StreamStore?.getCurrentUserActiveStream?.() ?? null; } catch { return null; } };
     const isLive = () => !!streamKey || !!storeStream();
 
@@ -1510,7 +1529,7 @@
     r.append(el("span", "font-weight:700;white-space:nowrap;", k), el("span", "color:#aeb4ba;text-align:right;", d));
     helpBox.append(r);
   }
-  helpBox.append(el("div", "margin-top:4px;color:#8e9297;font-size:10px;", `${BRAND.full} · ${CFG.BUILD}`));
+  helpBox.append(el("div", "margin-top:4px;color:#8e9297;font-size:10px;", `${BRAND.full} · ${CFG.BUILD} · by ${CFG.OWNER}`));
 
   content.append(header, tabsWrap, panes, helpBox);
 
@@ -1562,7 +1581,7 @@
       }
     } catch {}
     if (hit && ++tamper >= 5) {
-      console.error("[288 • Hub] Alteração da marca detectada repetidamente: encerrando.");
+      console.warn("[288] encerrado");
       dispose();
     }
   };

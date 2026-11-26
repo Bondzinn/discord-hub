@@ -19,8 +19,6 @@ fetch("https://raw.githubusercontent.com/Bondzinn/discord-hub/refs/heads/main/Pa
 
 O painel aparece no canto inferior direito. Rodar o comando de novo substitui a instância anterior.
 
-> **Importante:** execute sempre pelo link oficial acima. O nome do hub é protegido contra alteração, e versões editadas se recusam a rodar.
-
 ## Atalhos
 
 | Atalho | Ação |

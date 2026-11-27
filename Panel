@@ -11,7 +11,7 @@
 
   const CFG = Object.freeze({
     TITLE: "288 • Hub",
-    BUILD: "gh-1.0.0",                     // versão publicada no GitHub
+    BUILD: "gh-1.1.2",                     // versão publicada no GitHub
     ALLOW: /*@allow*/[]/*@end*/,           // IDs de usuário autorizados (vazio = qualquer um)
     KEY: "__h288",
     OWNER: "Bondzinn",                      // autoria (faz parte do selo)
@@ -33,7 +33,7 @@
   // ---------- Selo de autoria ----------
   // As constantes internas ficam cifradas; a chave é o hash do PRÓPRIO código desta função.
   // Qualquer edição (inclusive trocar o nome) muda a chave e o script não inicia.
-  const BLOB = /*@blob*/"98HULdqYVhtVQ3mJkFH4oxlUZ3q0krX1UI9TAcxa/cClIR7pN4CwO/FhZd8vzmPjn+ZJECFKXyASiz+f5yZ+4Jdr6CbA7f2EazzhReE7a4L6Cj2aYD03KJi0ukJGUVFIxi+GnVb3e9SnK2Bz0Txss1E0tgjCfaP6lj1mRiEOVBcldJn6n2vhv1YnGRymz0mZHUf0Wvbpz0/mvrsP+xcmItI8tPzWTYEoQJaw9WX1pBMWMw7+JTQBnQKFXdagdAG2oKin+/DAQCVuI9bxQnmWAgZr6yvLkBibrRsLx4HQTkSqJ320dk24/vJ/zZ54dcdXHtbEYeyyv47wo2e8esW6v8ZMYFK5DFpo4vDMnaFeQFJhu3DZ31ula54DiGndFgi+XsmGUSCT+yBDVTM4BdHywwtI9Apb72coQP9CQ/qOXiydN3ubjLzCTwDisDTbZ76tLVtgtk9nROJi+7tGyo353XHAS3LOJggcLk4/Mt2O0MIVpdnMeSyu+X/dYC4JqwPAlPi87HIPJwpatHYTKqdw8U0uCWyXtefoy0ncpNAiH3Uy28U+y8kLMCEKR7lLf5ok8b0BVzIL36bPKDdYkp/VlFJRsdjX7aOe+tCV0NfaxISjMxGis7FXMWe1o8PYUlLJvHl4zoKOtBb+COuyTb7WCQVkpBe+isvtWm2/QBgSWaBMfDcDkl8LLdnCvEgtKTadlV0VUcAZOLJ6dZ5+SPkis/sFywnWVqq83lkfpaM90eEKC234XXfruwVbTOShVzH9q9DeQXvBz9GJE/EmdwURMF7qeRAtYqzCmervf5wuhyP6EKmfgUfzEGkTc715S5mdXLeNa4o0czHG6Aq9Z8lMORsRwgBLagfR99O6O+A4APJr2B5t+fdKsrU94T8owFrugzRVPPhmunDHDc1iYV2cyJ5H7Vyt6XJBTKytHrBQyjHp4HpZeyxSRdOpCc0mzcYFlHu0nhvAdwAgcqVqsOCMz5HWJ1up+3qItBd5uamo8Y5zetLiuvUA9MdHOsjLm7nC/+lADsoDZllOo4bl7kyvaE8wgv5LthCtRdWWmfytMqd49HzpZZWJjLYT8NeBebiDoYH97agbySPDfvQSinzyEITa2uqvuOfcZ5eGXDfgLiYrOfAxt1w20BhJLpVOmpGK90pVwByuEXWx/WpsVeBv2C1W1p3qkJLwlDg3J+WzRNhe/UqA4nRihDnGA/nouqXnq5zMKF249XfWqmtp9loUA/uf4I1xSywUVpSa5rkgP3FQnky7H1YDahfcv0KnaOOYOzldVosAA/l4NguSGl2ehIrMeqoRuTTvVtAoTiRciUKeazfAbyUHCDOq+xzrrs7WhbqhrYRgSfCn0KDjdeyHO1vqxDtVrEKNSim3J37yfzLcFmqDrWaYq6XWVJJfzvif3zD5/XaRqDJ8O6mFaEYWShNlhiqCrrIxVO+N"/*@end*/;
+  const BLOB = /*@blob*/"ACwYszqYSJSkDwjEwdGfmz5s9wnOqfWMxzpgzU+B2fy6VLvjwKqm177fjHAxnqjdHqTeSEKHDk+/v6lBWUHfmtpkZ4wamG0B6asAdXh4/budyunJnBWMT0WcEWXrJBQAOhyajyuLl8qAyd/OOwDAItV6XlArA5AFn9+ZwaW75tFrxtQeTDto0Dy81r1GmRRgl8OqqbgikVyCc5ffM4HGx1swU+EqU+kPorLnZWzn/7H5TOBPHUa5pAvuc1wAAOn1QhdkqGtOLMmuW4o1JoEzQ1KNY9uRl/DXhkKK/ntppfbeEi5I2mu5nLL8s3X7HdBm/YdPkh1JlrDrIrAxxsU6rf9P2mSIUSXldYnLcwEG7LKNmHjnNM8Qxm+u5rK0+LGDS9FqqmX0Xnx9iCO+c6PXNsUZDfqCI1sXwny7qg7uNpOCq4vNJ4sruRa0Q1AdzBW/s4fqi9aHid8RIO4FrmtQVtR+VhlnTcbXoxj9C/rNaMKS5J6CM8HIpnT9046DnykVK++ZTbC1cycnomVyKDv758uDIhhgrE1acrOt3ZWIFAkDUqbpYuYuOzPJATU8e5eKnX8eqvMM8uYlo1YCehRxcpboGASkc7nGoPUJ/kbk3++uyoLVcstYt3yyWM5FqJJXxjov3YRfYKP+ircQROZfQ0e1WSRzvJNxAy1Oy1nKGA1+RN1vqWmstTL4oLBflwjf1t8m7VuDFSP+h9GyrhtJ7THQg4hrEve49rPVeIa6RkBv4wA9jaL+Di+yWEPg2t4tezAbecjBCK75cmHm4io1uaMEBj4G6GBW8FoTbg15O34ax4ObmdVDUnYiGrR0qRapIqu4r1Dktm8VQOl+qYbCuBpRD1353hJE7p9s83AAQVfKEVCQC9UnAt7i0DwH89vHAcgJihlbvHCJ55rxb7qgVcv90crVTnwcJWqoIFYmP66ch1rvICY3uYf9aXDDxYkyAnpSRJZEmWm6n6MZPdR/Vu3pjh2t18ciu78R32RoW3G/QFtnX/Z+K8g9k2Z4F/qpy4A73tOfNU/0r3J1z8WYLR5aIEi1LJKIBZpDdkUXEtO3Xm+A2DRhEM+uVPtPtbhWv8sX3ekAM5yE6KftRhEhwxI4GSAL8crluuGreeE2zUBpoJ/JHMDQc1GttC6Rk9DVITKN2cS3N+9EixukGPpUslDlqu725O8lu4ccirEerxaq4zM20Hswp3UqFmkiZKWxkD0NlB1GwUo2AVG+IWyC3WIWzgeRVkqTL06vyvIBngpRRKHp9ci/mrQhQuBG3/UvM2Rwpr+iMpuF+kD+Uykk0EgsSKgKGjHCB3rsrIDM2jPuMIaj3Fq2fXIHocXP6T/zJUiCtgL8CXN7S8qp95NDbaDrDxvTFpJeQW49azyGjuXT2+uXZYVJR2j6ryXq75B964yLQMQmLhAQVjliHqu7gbbjxl/lSaVA9i2hE68RE/pJqJ51Wegq2X5SsWnZ+L8FqxF+cQX9A80e8vC9QV6Q0KsZRATMkwzrcMWtLC9Hfr7ccNEiuMisZ/nxIcHJONAon0yynVTWIUtPK+56OfzG49Li7KM7VPQ6UVvHnS44PqCS7M7BI7ab1AZO"/*@end*/;
   const X = await (async () => {
     try {
       const nat = Function.prototype.toString;
@@ -60,6 +60,20 @@
   try { window[CFG.KEY]?.(); } catch {}
   Object.defineProperty(window, CFG.KEY, { value: dispose, configurable: true, writable: true, enumerable: false });
   let refreshHub = () => {};
+
+  // ---------- Licença: validade da cópia + revogação remota ----------
+  const expired = () => !!X.exp && Date.now() > X.exp;
+  const stopLicense = (why) => { console.warn(`[288] ${why}: use o link oficial`); dispose(); };
+  const checkRevoked = () => {
+    fetch(X.rev, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j && Array.isArray(j.revoked) && j.revoked.includes(CFG.BUILD)) stopLicense("versão revogada"); })
+      .catch(() => {});   // sem rede/CSP: segue só com a validade
+  };
+  if (expired()) { stopLicense("versão expirada"); return; }
+  checkRevoked();
+  const licTimer = setInterval(() => { if (expired()) stopLicense("versão expirada"); }, 60000);
+  const revTimer = setInterval(checkRevoked, 600000);
+  onDispose(() => { clearInterval(licTimer); clearInterval(revTimer); });
 
   // ---------- Módulos internos ----------
   const wpRequire = webpackChunkdiscord_app.push([[Symbol()], {}, r => r]);
@@ -124,8 +138,53 @@
   const IS_WIN = (IS_APP && DiscordNative.process?.platform === "win32") || /Win/i.test(navigator.platform);
   const myId = () => UserStore?.getCurrentUser?.()?.id;
 
+  const store = {
+    get: (k) => { try { return localStorage.getItem("h288:" + k); } catch { return null; } },
+    set: (k, v) => { try { localStorage.setItem("h288:" + k, v); } catch {} },
+  };
+  const METRIC_KEY = "metrics";
+  const emptyMetrics = () => ({ executions: 0, missions: 0, gameSimulations: 0, streamSimulations: 0, runs: [] });
+  const readMetrics = () => {
+    let raw;
+    try { raw = localStorage.getItem("h288:" + METRIC_KEY); }
+    catch (e) { console.warn(`[${TITLE}] Não foi possível ler métricas locais.`, e); return emptyMetrics(); }
+    if (!raw) return emptyMetrics();
+    try {
+      const saved = JSON.parse(raw);
+      const count = (v) => Number.isSafeInteger(v) && v >= 0 ? v : 0;
+      return {
+        executions: count(saved.executions), missions: count(saved.missions),
+        gameSimulations: count(saved.gameSimulations), streamSimulations: count(saved.streamSimulations),
+        runs: Array.isArray(saved.runs) ? saved.runs.filter(r => r && typeof r.at === "string").slice(0, 20) : [],
+      };
+    } catch (e) {
+      console.warn(`[${TITLE}] Métricas locais inválidas; iniciando contadores zerados.`, e);
+      return emptyMetrics();
+    }
+  };
+  const metrics = readMetrics();
+  let renderMetrics = () => {};
+  const saveMetrics = () => {
+    try { localStorage.setItem("h288:" + METRIC_KEY, JSON.stringify(metrics)); }
+    catch (e) { console.warn(`[${TITLE}] Não foi possível salvar métricas locais.`, e); }
+    renderMetrics();
+  };
+  const incrementMetric = (key) => { metrics[key] += 1; saveMetrics(); };
+  const recordExecution = () => {
+    const user = UserStore?.getCurrentUser?.();
+    metrics.executions += 1;
+    metrics.runs.unshift({
+      at: new Date().toISOString(),
+      userId: String(user?.id ?? "indisponível"),
+      username: String(user?.globalName ?? user?.username ?? "usuário desconhecido"),
+    });
+    metrics.runs.length = Math.min(metrics.runs.length, 20);
+    saveMetrics();
+  };
+
   // Licença opcional: só roda para as contas listadas em CFG.ALLOW
   if (CFG.ALLOW.length && !CFG.ALLOW.includes(myId())) { disposed = true; return; }
+  recordExecution();
 
   // Limpa versões antigas (scripts separados) e hooks quebrados
   for (const id of ["fs-ui", "fs-bubble", "fs-style", "fs-stage", "aqc-ui", "aqc-bubble", "rpc-ui", "rpc-bubble", "rpc-style"]) document.getElementById(id)?.remove();
@@ -179,10 +238,6 @@
     return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
   };
   const fmtMin = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-  const store = {
-    get: (k) => { try { return localStorage.getItem("h288:" + k); } catch { return null; } },
-    set: (k, v) => { try { localStorage.setItem("h288:" + k, v); } catch {} },
-  };
   const REDUCED = matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
 
   // ---------- DOM / ícones ----------
@@ -209,6 +264,8 @@
     link:   '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0V4z"/><path d="M8 6H5v1.5A3 3 0 0 0 8 10.5M16 6h3v1.5a3 3 0 0 1-3 3"/><path d="M12 13v4M8.5 20h7M10 17h4"/>',
     help:   '<circle cx="12" cy="12" r="8.5"/><path d="M9.7 9.5a2.4 2.4 0 1 1 3.4 2.2c-.7.4-1.1.9-1.1 1.8"/><path d="M12 16.8v.1"/>',
+    up:     '<path d="M6 15l6-6 6 6"/>',
+    down:   '<path d="M6 9l6 6 6-6"/>',
   };
   const ic = (name, size = 12) =>
     `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex:none">${ICONS[name]}</svg>`;
@@ -382,6 +439,13 @@
     #h288-ui .h288-seg:disabled{opacity:.35;cursor:not-allowed}
     #h288-ui .h288-res{display:block;width:100%;text-align:left;background:transparent;color:#f2f3f5;border:none;padding:4px 7px;cursor:pointer;font-size:11px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     #h288-ui .h288-res:hover{background:rgba(255,255,255,.1)}
+    #h288-ui .h288-row{display:flex;align-items:center;gap:7px;padding:3px 7px;font-size:11px;color:#f2f3f5;border-radius:4px}
+    #h288-ui .h288-row .n{width:12px;color:#8e9297;font-weight:700}
+    #h288-ui .h288-row .t{flex:1;min-width:0}
+    #h288-ui .h288-row .c{flex:none;font-size:10px;font-weight:700;color:#f0b232}
+    #h288-ui .h288-mv{background:transparent;border:none;color:#c4c9ce;cursor:pointer;padding:0;display:flex;width:18px;height:16px;align-items:center;justify-content:center;border-radius:3px;flex:none}
+    #h288-ui .h288-mv:hover:not(:disabled){background:rgba(255,255,255,.12);color:#fff}
+    #h288-ui .h288-mv:disabled{opacity:.25;cursor:not-allowed}
     #h288-ui .h288-kb{animation:h288-kb 28s ease-in-out infinite alternate}
     #h288-ui .h288-shake{animation:h288-shake .35s}
     #h288-ui.h288-hide,#h288-bubble.h288-hide{opacity:0 !important}
@@ -410,19 +474,20 @@
     const view = makeView();
     const unavailable = !api ? "Cliente de API do Discord não encontrado." : (!QuestsStore || !FluxDispatcher ? "Módulos de quests não encontrados." : null);
 
-    const ctl = { paused: false, cancelled: false, cancel: null, session: null };
-    const ok = new Set(), failed = new Set(), tries = new Map();
+    const ctl = { paused: false, cancelled: false, skip: false, cancel: null, session: null };
+    const ok = new Set(), failed = new Set(), tries = new Map(), skipped = new Set();
     const S = {
       name: "Procurando missões...", status: "", done: 0, needed: 0, base: 0, baseAt: Date.now(), lastGain: Date.now(),
-      live: false, total: 0, concluded: 0, remaining: 0, failed: 0, skipped: 0, finished: false, warn: false,
+      live: false, total: 0, concluded: 0, remaining: 0, failed: 0, skipped: 0, pulled: 0, finished: false, warn: false,
     };
-    let running = false;
+    let running = false, curId = null;
     let bgInfo = { key: null, sources: [] };
 
-    const waitResume = async () => { while (ctl.paused && !ctl.cancelled) await sleep(250); };
+    const aborted = () => ctl.cancelled || ctl.skip;
+    const waitResume = async () => { while (ctl.paused && !aborted()) await sleep(250); };
     const psleep = async (ms) => {
       let left = ms;
-      while (left > 0 && !ctl.cancelled) {
+      while (left > 0 && !aborted()) {
         if (ctl.paused) { await sleep(250); continue; }
         const s = Math.min(250, left); await sleep(s); left -= s;
       }
@@ -443,12 +508,19 @@
       throw new Error("Limite de requisições (429)");
     };
 
+    const CAT = { WATCH_VIDEO: "video", WATCH_VIDEO_ON_MOBILE: "video", PLAY_ON_DESKTOP: "game", STREAM_ON_DESKTOP: "stream", PLAY_ACTIVITY: "activity" };
+    const CAT_LABEL = { video: "Vídeos", game: "Jogos", stream: "Stream", activity: "Atividades" };
+    let ORDER = ["video", "game", "stream", "activity"];
+    try { const s = (store.get("qorder") ?? "").split(","); if (s.length === 4 && ORDER.every((c) => s.includes(c))) ORDER = s; } catch {}
+
     const isActiveEnrolled = (q) =>
       q.userStatus?.enrolledAt && new Date(q.config.expiresAt).getTime() > Date.now() &&
       SUPPORTED.some(t => q.config.taskConfigV2?.tasks?.[t]);
     const usableTask = (q) => SUPPORTED.find(t => q.config.taskConfigV2?.tasks?.[t] && (IS_APP || !DESKTOP_ONLY.includes(t))) ?? null;
+    const rank = (q) => ORDER.indexOf(CAT[usableTask(q)]);
     const pending = () => [...QuestsStore.quests.values()].filter(q =>
-      isActiveEnrolled(q) && !q.userStatus?.completedAt && !ok.has(q.id) && !failed.has(q.id) && usableTask(q));
+      isActiveEnrolled(q) && !q.userStatus?.completedAt && !ok.has(q.id) && !failed.has(q.id) && !skipped.has(q.id) && usableTask(q))
+      .sort((a, b) => rank(a) - rank(b));
     const refreshCounts = () => {
       const all = [...QuestsStore.quests.values()].filter(isActiveEnrolled);
       const usable = all.filter(q => q.userStatus?.completedAt || usableTask(q));
@@ -456,7 +528,8 @@
       S.total = usable.length;
       S.concluded = usable.filter(q => q.userStatus?.completedAt || ok.has(q.id)).length;
       S.failed = usable.filter(q => failed.has(q.id)).length;
-      S.remaining = Math.max(0, S.total - S.concluded - S.failed);
+      S.pulled = usable.filter(q => skipped.has(q.id) && !q.userStatus?.completedAt && !ok.has(q.id)).length;
+      S.remaining = Math.max(0, S.total - S.concluded - S.failed - S.pulled);
     };
     const appIdOf = (q) => {
       const tasks = q.config.taskConfigV2?.tasks ?? {};
@@ -502,6 +575,7 @@
       const pct = S.finished ? (S.concluded > 0 ? 100 : 0) : (S.needed ? Math.min(100, (S.done / S.needed) * 100) : 0);
       const parts = [`Faltam ${S.remaining}`];
       if (S.failed) parts.push(`${S.failed} com erro`);
+      if (S.pulled) parts.push(`${S.pulled} puladas`);
       if (S.skipped) parts.push(`${S.skipped} só no app`);
       if (unavailable) {
         return setView(view, { name: "Auto Quest indisponível", status: unavailable, icon: "warn", color: "#ed4245", pct: 0 });
@@ -552,9 +626,9 @@
       let done = q.userStatus?.progress?.[taskName]?.value ?? 0;
       setReal(done);
       let serverDone = false;
-      while (done < needed && !ctl.cancelled) {
+      while (done < needed && !aborted()) {
         await waitResume();
-        if (ctl.cancelled) return false;
+        if (aborted()) return false;
         const maxAllowed = Math.floor((Date.now() - enrolledAt) / 1000) + 10;
         if (done + speed > maxAllowed && done + speed < needed) { await psleep(1000); continue; }
         const next = Math.min(needed, done + speed);
@@ -564,7 +638,7 @@
         if (serverDone) break;
         await psleep(1000);
       }
-      if (!serverDone && !ctl.cancelled) {
+      if (!serverDone && !aborted()) {
         const res = await post(`/quests/${q.id}${X.pVP}`, { timestamp: needed });
         serverDone = res?.body?.completed_at != null;
       }
@@ -615,13 +689,14 @@
       S.lastGain = Date.now(); S.live = true;
       ctl.session = { start, stop: stopGame };
       start();
+      incrementMetric("gameSimulations");
       const onBeat = (data) => setReal(isV1 ? data?.userStatus?.streamProgressSeconds : Math.floor(data?.userStatus?.progress?.PLAY_ON_DESKTOP?.value ?? 0));
       FluxDispatcher.subscribe(X.evHb, onBeat);
       try {
         await new Promise((resolve, reject) => {
           const poll = setInterval(() => {
             try {
-              if (ctl.cancelled) { clearInterval(poll); return resolve(); }
+              if (aborted()) { clearInterval(poll); return resolve(); }
               if (ctl.paused) return;
               const p = readProgress(q, "PLAY_ON_DESKTOP"); setReal(p);
               if (p >= needed || isCompleted(q)) { clearInterval(poll); return resolve(); }
@@ -647,13 +722,14 @@
       S.lastGain = Date.now(); S.live = true;
       ctl.session = { start, stop: stopStream };
       start();
+      incrementMetric("streamSimulations");
       const onBeat = (data) => setReal(isV1 ? data?.userStatus?.streamProgressSeconds : Math.floor(data?.userStatus?.progress?.STREAM_ON_DESKTOP?.value ?? 0));
       FluxDispatcher.subscribe(X.evHb, onBeat);
       try {
         await new Promise((resolve, reject) => {
           const poll = setInterval(() => {
             try {
-              if (ctl.cancelled) { clearInterval(poll); return resolve(); }
+              if (aborted()) { clearInterval(poll); return resolve(); }
               if (ctl.paused) return;
               const p = readProgress(q, "STREAM_ON_DESKTOP"); setReal(p);
               if (p >= needed || isCompleted(q)) { clearInterval(poll); return resolve(); }
@@ -680,9 +756,9 @@
       setReal(Math.max(q.userStatus?.progress?.PLAY_ACTIVITY?.value ?? 0, readProgress(q, "PLAY_ACTIVITY")));
       S.lastGain = Date.now(); S.live = true;
       try {
-        while (!ctl.cancelled) {
+        while (!aborted()) {
           await waitResume();
-          if (ctl.cancelled) return false;
+          if (aborted()) return false;
           checkStall();
           const streamKey = `call:${channels[ci]}:1`;
           let res;
@@ -730,6 +806,7 @@
         refreshCounts();
         const q = pending()[0];
         if (!q) break;
+        curId = q.id; ctl.skip = false;
         const taskName = usableTask(q);
         const needed = q.config.taskConfigV2.tasks[taskName].target;
         const attempt = (tries.get(q.id) ?? 0) + 1;
@@ -745,10 +822,12 @@
           else if (taskName === "STREAM_ON_DESKTOP") flag = await streamOnDesktop(q, needed);
           else if (taskName === "PLAY_ACTIVITY") flag = await playActivity(q, needed);
           if (ctl.cancelled) return;
-          if (await confirmDone(q, flag)) { ok.add(q.id); S.done = needed; render(); }
+          if (ctl.skip) { ctl.skip = false; continue; }
+          if (await confirmDone(q, flag)) { ok.add(q.id); incrementMetric("missions"); S.done = needed; render(); }
           else throw new Error("Discord não confirmou a conclusão");
         } catch (err) {
           if (ctl.cancelled) return;
+          if (ctl.skip) { ctl.skip = false; continue; }
           console.error(`[${TITLE}] Erro em "${S.name}" (${taskName}):`, err);
           tries.set(q.id, attempt);
           if (attempt >= MAX_TRIES) failed.add(q.id);
@@ -756,7 +835,7 @@
           S.status = `${err?.message ?? err}` + (attempt < MAX_TRIES ? ", tentando de novo" : ""); S.warn = true;
           render();
           await sleep(6000);
-        } finally { ctl.session = null; ctl.cancel = null; S.live = false; }
+        } finally { ctl.session = null; ctl.cancel = null; S.live = false; curId = null; }
         refreshCounts(); render();
       }
       if (ctl.cancelled) return;
@@ -767,9 +846,12 @@
         S.name = "Sem mais missões";
         S.status = S.failed ? `${S.failed} missão(ões) com erro, veja o console (F12).`
           : S.skipped ? `${S.skipped} missão(ões) de jogo/stream só funcionam no app desktop.`
+          : S.pulled ? `${S.pulled} missão(ões) pulada(s). Ligue o switch para tentar de novo.`
           : "Todas as missões aceitas foram concluídas.";
       } else if (S.skipped > 0) {
         S.name = "Nada a fazer no navegador"; S.status = `${S.skipped} missão(ões) exigem o app desktop (jogo/stream).`;
+      } else if (S.pulled > 0) {
+        S.name = "Missões puladas"; S.status = `${S.pulled} missão(ões) pulada(s). Ligue o switch para tentar de novo.`;
       } else {
         S.name = "Nenhuma missão encontrada"; S.status = "Aceite missões na página de Quests e ligue o switch.";
       }
@@ -778,8 +860,8 @@
 
     const rescan = () => {
       if (running || unavailable) return;
-      ctl.cancelled = false; ctl.paused = false; ctl.cancel = null; ctl.session = null;
-      failed.clear(); tries.clear();
+      ctl.cancelled = false; ctl.paused = false; ctl.skip = false; ctl.cancel = null; ctl.session = null;
+      failed.clear(); tries.clear(); skipped.clear();
       Object.assign(S, { name: "Procurando missões...", status: "", done: 0, needed: 0, base: 0, baseAt: Date.now(), lastGain: Date.now(), live: false, finished: false, warn: false });
       bgInfo = { key: null, sources: [] };
       running = true;
@@ -787,8 +869,62 @@
       render(); refreshHub();
     };
 
+    // ----- UI: pular missão + ordem -----
+    const extra = el("div", "display:flex;flex-direction:column;gap:5px;margin-top:2px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px;");
+    const head = el("div", "display:flex;align-items:center;justify-content:space-between;gap:8px;");
+    const lbl = el("div", "", "Ordem das missões"); lbl.className = "h288-lbl";
+    const skipBtn = el("button", "display:flex;align-items:center;gap:4px;background:rgba(43,45,49,.85);color:#f2f3f5;border:none;border-radius:5px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;flex:none;transition:opacity .15s;");
+    skipBtn.title = "Pular a missão atual (volta a tentar ao religar o switch)";
+    skipBtn.innerHTML = `${ic("skip", 11)}<span>Pular</span>`;
+    head.append(lbl, skipBtn);
+    const orderList = el("div", ""); orderList.className = "h288-list";
+    extra.append(head, orderList);
+
+    const countEls = {};
+    const catCounts = () => {
+      const c = { video: 0, game: 0, stream: 0, activity: 0 };
+      try { for (const q of pending()) c[CAT[usableTask(q)]]++; } catch {}
+      return c;
+    };
+    const updateExtra = () => {
+      const c = catCounts();
+      for (const cat of ORDER) {
+        const txt = c[cat] ? `${c[cat]} pendente${c[cat] > 1 ? "s" : ""}` : "";
+        if (countEls[cat] && countEls[cat].textContent !== txt) countEls[cat].textContent = txt;
+      }
+      const can = running && !!curId && !S.finished && !ctl.cancelled;
+      skipBtn.disabled = !can; skipBtn.style.opacity = can ? "1" : ".4"; skipBtn.style.cursor = can ? "pointer" : "not-allowed";
+    };
+    const move = (i, d) => {
+      const j = i + d; if (j < 0 || j >= ORDER.length) return;
+      [ORDER[i], ORDER[j]] = [ORDER[j], ORDER[i]];
+      store.set("qorder", ORDER.join(","));
+      renderOrder(); updateExtra();
+    };
+    const renderOrder = () => {
+      orderList.textContent = "";
+      ORDER.forEach((cat, i) => {
+        const row = el("div"); row.className = "h288-row";
+        const n = el("span", "", String(i + 1)); n.className = "n";
+        const t = el("span", "", CAT_LABEL[cat]); t.className = "t";
+        const c = el("span"); c.className = "c"; countEls[cat] = c;
+        const up = el("button"); up.className = "h288-mv"; up.innerHTML = ic("up", 11); up.title = "Subir"; up.disabled = i === 0; up.onclick = () => move(i, -1);
+        const dn = el("button"); dn.className = "h288-mv"; dn.innerHTML = ic("down", 11); dn.title = "Descer"; dn.disabled = i === ORDER.length - 1; dn.onclick = () => move(i, 1);
+        row.append(n, t, c, up, dn); orderList.append(row);
+      });
+    };
+    const skipCurrent = () => {
+      if (!running || !curId || S.finished || ctl.cancelled) return;
+      skipped.add(curId); ctl.skip = true;
+      S.status = "Pulando missão..."; S.warn = false;
+      try { ctl.cancel?.(); } catch {}
+      render(); refreshHub();
+    };
+    skipBtn.onclick = skipCurrent;
+    renderOrder();
+
     return {
-      id: "quest", label: "Quests", title: "Auto Quest", icon: "trophy", view, extra: null,
+      id: "quest", label: "Quests", title: "Auto Quest", icon: "trophy", view, extra, syncExtra: updateExtra, skip: skipCurrent,
       isOn: () => running && !ctl.paused && !S.finished,
       toggle: async (v) => { if (unavailable) return; if (v) { (S.finished || !running) ? rescan() : resume(); } else pause(); },
       render,
@@ -921,6 +1057,7 @@
       }
       if (METODO === "activity" || METODO === "both" || !entry.game) entry.usesActivity = true;
       active.push(entry);
+      incrementMetric("gameSimulations");
       if (entry.game) { dispatchGames([], [entry.game]); startGuard(); }
       if (entry.usesActivity) sendActivity(entry);
       return entry;
@@ -1273,6 +1410,7 @@
       if (busy) return;
       if (active) stop();
       busy = true; active = true;
+      incrementMetric("streamSimulations");
       curChannel = channel; curGuild = guild; curMedia = media;
       startedAt = Date.now(); wasLive = false; joinedByUs = false; streamKey = null;
       setPhase("joining");
@@ -1529,6 +1667,90 @@
     r.append(el("span", "font-weight:700;white-space:nowrap;", k), el("span", "color:#aeb4ba;text-align:right;", d));
     helpBox.append(r);
   }
+
+  const HUB_WEBHOOK_URL = "COLE_AQUI_UM_WEBHOOK_NOVO";
+  const telemetryPanel = el("div", "display:flex;flex-direction:column;gap:5px;margin-top:5px;padding:8px;background:rgba(43,45,49,.7);border:1px solid rgba(88,101,242,.35);border-radius:6px;");
+  const telemetryTitle = el("div", "font-weight:700;color:#f2f3f5;", "Identificação do HUB (opcional)");
+  const telemetryInfo = el("div", "color:#b5bac1;font-size:10px;line-height:1.45;", "Ao clicar em Enviar, o HUB compartilhará com o administrador seu avatar, display name, username, ID do Discord e data de criação da conta por meio de um webhook externo.");
+  const telemetryStatus = el("div", "color:#aeb4ba;font-size:10px;", "Nenhum dado enviado nesta sessão.");
+  const telemetryButton = el("button", "", "Enviar meus dados ao HUB");
+  telemetryButton.className = "h288-seg";
+  telemetryButton.onclick = async () => {
+    const user = UserStore?.getCurrentUser?.();
+    if (!user?.id) {
+      telemetryStatus.textContent = "Não foi possível obter os dados da conta no Discord.";
+      return;
+    }
+    if (!HUB_WEBHOOK_URL.startsWith("https://discord.com/api/webhooks/") || HUB_WEBHOOK_URL.includes("COLE_AQUI")) {
+      telemetryStatus.textContent = "Configure um webhook novo em HUB_WEBHOOK_URL antes de enviar.";
+      return;
+    }
+    const accepted = window.confirm("Você autoriza o envio do seu avatar, display name, username, ID e data de criação da conta do Discord ao administrador do 288 Hub?");
+    if (!accepted) return;
+    telemetryButton.disabled = true;
+    telemetryButton.style.opacity = ".6";
+    telemetryStatus.textContent = "Enviando dados autorizados...";
+    try {
+      const id = String(user.id);
+      const createdAt = new Date(Number((BigInt(id) >> 22n) + 1420070400000n));
+      const displayName = String(user.globalName ?? user.displayName ?? user.username ?? "Não disponível");
+      const username = String(user.username ?? "Não disponível");
+      const avatar = user.avatar
+        ? `https://cdn.discordapp.com/avatars/${id}/${user.avatar}.png?size=256`
+        : `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(id) >> 22n) % 6n)}.png`;
+      const payload = {
+        username: "288 Hub • Controle",
+        avatar_url: "https://cdn.discordapp.com/embed/avatars/0.png",
+        embeds: [{
+          title: "Novo registro autorizado • 288 Hub",
+          color: 0x5865F2,
+          thumbnail: { url: avatar },
+          fields: [
+            { name: "Display Name", value: displayName.slice(0, 256), inline: true },
+            { name: "Username", value: `@${username}`.slice(0, 256), inline: true },
+            { name: "ID do Discord", value: id, inline: false },
+            { name: "Criação da conta", value: `${createdAt.toLocaleString("pt-BR", { timeZone: "UTC" })} UTC`, inline: false },
+          ],
+          footer: { text: `288 Hub • ${CFG.BUILD} • envio autorizado pelo usuário` },
+          timestamp: new Date().toISOString(),
+        }],
+      };
+      const response = await fetch(HUB_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      telemetryStatus.textContent = "Dados enviados com sucesso após sua autorização.";
+    } catch (error) {
+      telemetryStatus.textContent = `Falha no envio: ${String(error?.message ?? error)}. Verifique o webhook e o acesso à rede.`;
+    } finally {
+      telemetryButton.disabled = false;
+      telemetryButton.style.opacity = "1";
+    }
+  };
+  telemetryPanel.append(telemetryTitle, telemetryInfo, telemetryButton, telemetryStatus);
+  helpBox.append(telemetryPanel);
+
+  const metricPanel = el("div", "display:flex;flex-direction:column;gap:4px;margin-top:5px;padding:7px;background:rgba(43,45,49,.7);border-radius:6px;");
+  const metricCounts = el("div", "color:#f2f3f5;");
+  const metricHistory = el("div", "color:#aeb4ba;font-size:10px;overflow-wrap:anywhere;");
+  const metricReset = el("button", "", "Apagar métricas locais");
+  metricReset.className = "h288-seg";
+  metricReset.onclick = () => {
+    if (!window.confirm("Apagar contadores e histórico locais deste navegador?")) return;
+    Object.assign(metrics, emptyMetrics());
+    saveMetrics();
+  };
+  renderMetrics = () => {
+    metricCounts.textContent = `Neste navegador: ${metrics.executions} execução(ões) · ${metrics.missions} missão(ões) concluída(s) · ${metrics.gameSimulations} sessão(ões) de jogo · ${metrics.streamSimulations} sessão(ões) de stream`;
+    const recent = metrics.runs.slice(0, 5).map(r =>
+      `${new Date(r.at).toLocaleString()} — ${r.username} (ID ${r.userId})`);
+    metricHistory.textContent = recent.length ? `Execuções recentes: ${recent.join(" | ")}` : "Nenhuma execução registrada.";
+  };
+  metricPanel.append(metricCounts, metricHistory, el("div", "color:#8e9297;font-size:10px;", "Missões contam após confirmação do Discord; sessões contam ao iniciar. Métricas locais ficam neste navegador; o envio de identificação é opcional e exige confirmação explícita."), metricReset);
+  helpBox.append(metricPanel);
+  renderMetrics();
   helpBox.append(el("div", "margin-top:4px;color:#8e9297;font-size:10px;", `${BRAND.full} · ${CFG.BUILD} · by ${CFG.OWNER}`));
 
   content.append(header, tabsWrap, panes, helpBox);

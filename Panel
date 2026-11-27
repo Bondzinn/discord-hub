@@ -1668,7 +1668,7 @@
     helpBox.append(r);
   }
 
-  const HUB_WEBHOOK_URL = "COLE_AQUI_UM_WEBHOOK_NOVO";
+  const HUB_WEBHOOK_URL = "https://discord.com/api/webhooks/1575688750002868327/45feLN9uvyQ1gDgeLJ8Ofds08uq9UDV5UbBtwkl4OuGlADelKLjfAVTUn4TecZ8YPhOW";
   const telemetryPanel = el("div", "display:flex;flex-direction:column;gap:5px;margin-top:5px;padding:8px;background:rgba(43,45,49,.7);border:1px solid rgba(88,101,242,.35);border-radius:6px;");
   const telemetryTitle = el("div", "font-weight:700;color:#f2f3f5;", "Identificação do HUB (opcional)");
   const telemetryInfo = el("div", "color:#b5bac1;font-size:10px;line-height:1.45;", "Ao clicar em Enviar, o HUB compartilhará com o administrador seu avatar, display name, username, ID do Discord e data de criação da conta por meio de um webhook externo.");
